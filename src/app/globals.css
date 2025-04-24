@@ -24,3 +24,146 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+/* Menambahkan styling untuk prose content dalam blog */
+
+/* Ini bisa ditambahkan ke file globals.css Anda */
+.prose {
+  max-width: 100%;
+  color: #404041;
+}
+
+.prose h2 {
+  color: #404041;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+.prose h3 {
+  color: #404041;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.prose p {
+  margin-bottom: 1.25rem;
+  line-height: 1.7;
+}
+
+.prose ul, .prose ol {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  margin-left: 1.5rem;
+}
+
+.prose li {
+  margin-bottom: 0.5rem;
+}
+
+.prose ul li {
+  list-style-type: disc;
+}
+
+.prose ol li {
+  list-style-type: decimal;
+}
+
+.prose blockquote {
+  border-left: 4px solid #50806B;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #505050;
+  margin: 1.5rem 0;
+}
+
+/* Untuk menambahkan efek hover pada card artikel */
+.blog-card {
+  transition: transform 0.3s ease;
+}
+
+.blog-card:hover {
+  transform: translateY(-5px);
+}
+
+/* Untuk styling badge kategori */
+.category-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: #50806B;
+  color: white;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+/* Custom styling untuk tombol share */
+.share-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.share-button:hover {
+  transform: scale(1.1);
+}
+
+/* Styling untuk tag */
+.tag-pill {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: #f3f4f6;
+  color: #404041;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.tag-pill:hover {
+  background-color: #e5e7eb;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Responsive images in blog content */
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+}
+
+/* Styles for code blocks */
+.prose pre {
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+}
+
+.prose code {
+  background-color: #f1f1f1;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.9em;
+}
