@@ -12,12 +12,19 @@ const DetailDesainTaman = ({ params }) => {
   const [luasError, setLuasError] = useState("");
   const [selectedServices, setSelectedServices] = useState([]);
   const [showConsultationForm, setShowConsultationForm] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formDesain, setFormDesain] = useState({
+    kategori: "",
     nama: "",
-    email: "",
     telepon: "",
     alamat: "",
-    catatanTambahan: "",
+    fotoPekarangan: null,
+    fotoInspirasi: null,
+  });
+  
+  // State untuk URL preview gambar
+  const [previews, setPreviews] = useState({
+    fotoPekarangan: null,
+    fotoInspirasi: null,
   });
 
   useEffect(() => {
@@ -90,21 +97,88 @@ const DetailDesainTaman = ({ params }) => {
     }).format(price);
   };
 
-  // Handler form konsultasi
+  // Handler form konsultasi - PERBAIKAN: mengubah setFormData menjadi setFormDesain
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormDesain((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
+  
+  // Handler untuk input file
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      // Update state form dengan file yang dipilih
+      setFormDesain({
+        ...formDesain,
+        [name]: files[0],
+      });
+      
+      // Buat URL preview untuk gambar
+      const previewUrl = URL.createObjectURL(files[0]);
+      setPreviews({
+        ...previews,
+        [name]: previewUrl,
+      });
+    }
+  };
+  
+  // Fungsi untuk menghapus gambar
+  const handleRemoveImage = (name) => {
+    setFormDesain({
+      ...formDesain,
+      [name]: null,
+    });
+    
+    // Hapus URL preview dan bebaskan memori
+    if (previews[name]) {
+      URL.revokeObjectURL(previews[name]);
+      setPreviews({
+        ...previews,
+        [name]: null,
+      });
+    }
+  };
 
   const handleSubmitConsultation = (e) => {
     e.preventDefault();
+    
+    // Untuk mengirim data termasuk file, gunakan FormData
+    const formData = new FormData();
+    
+    // Tambahkan semua data form ke FormData
+    Object.entries(formDesain).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+    
+    // Tambahkan informasi desain dan layanan tambahan
+    if (desain) {
+      formData.append('desainId', desain.id);
+      formData.append('desainNama', desain.name);
+      formData.append('hargaDesain', desain.price);
+      formData.append('luasTanah', luasTanah);
+      formData.append('layananTambahan', JSON.stringify(selectedServices));
+      formData.append('totalHarga', calculateTotalPrice());
+    }
+    
     // Di sini nanti akan mengirim data ke backend
-    alert(
-      "Permintaan konsultasi telah dikirim! Tim kami akan menghubungi Anda segera."
-    );
+    // fetch('/api/konsultasi', {
+    //   method: 'POST',
+    //   body: formData,
+    // })
+    //   .then(response => response.json())
+    //   .then(data => {
+    //     alert("Permintaan konsultasi telah dikirim! Tim kami akan menghubungi Anda segera.");
+    //     setShowConsultationForm(false);
+    //   })
+    //   .catch(error => {
+    //     console.error('Error:', error);
+    //     alert("Terjadi kesalahan. Silakan coba lagi.");
+    //   });
+    
+    alert("Permintaan konsultasi telah dikirim! Tim kami akan menghubungi Anda segera.");
     setShowConsultationForm(false);
   };
 
@@ -124,16 +198,7 @@ const DetailDesainTaman = ({ params }) => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div id="header-desain-taman" className="h-24 bg-[#89A99A] flex mb-8">
-        <p className="text-[#404041] my-auto text-3xl font-bold ml-[77px]">
-          Detail Desain Taman
-        </p>
-        <div className="h-3/5 my-auto w-[4px] bg-[#404041] ml-10"></div>
-        <p className="text-[#404041] my-auto ml-5">
-          Informasi lengkap tentang desain taman pilihan Anda
-        </p>
-      </div>
+  
 
       {/* Tombol Kembali */}
       <div className="mb-6 ml-[77px]">
@@ -306,7 +371,7 @@ const DetailDesainTaman = ({ params }) => {
               onClick={() => setShowConsultationForm(true)}
               disabled={luasError !== ""}
             >
-              Konsultasi Desain
+              Tambah ke Keranjang
             </button>
             <Link
               href={`https://wa.me/6281234567890?text=Halo,%20saya%20tertarik%20dengan%20desain%20${encodeURIComponent(
@@ -325,27 +390,30 @@ const DetailDesainTaman = ({ params }) => {
       {showConsultationForm && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
           {/* Backdrop overlay dengan opacity */}
-          <div className="absolute inset-0 bg-black opacity-70"></div>
+          <div 
+            className="absolute inset-0 bg-black opacity-70"
+            onClick={() => setShowConsultationForm(false)}
+          ></div>
 
           {/* Form container */}
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto z-10">
             <h2 className="text-2xl font-bold text-[#404041] mb-2">
-              Form Konsultasi Desain
+              Detail Pemesanan Desain
             </h2>
 
             <form onSubmit={handleSubmitConsultation}>
               <div className="mb-2">
                 <label
-                  htmlFor="nama"
+                  htmlFor="kategori"
                   className="block text-gray-700 font-medium mb-1"
                 >
-                  Nama Lengkap
+                  Kategori (ex. rumah, kantor)
                 </label>
                 <input
                   type="text"
-                  id="nama"
-                  name="nama"
-                  value={formData.nama}
+                  id="kategori"
+                  name="kategori"
+                  value={formDesain.kategori}
                   onChange={handleFormChange}
                   className="w-full border-2 border-gray-300 rounded-lg p-2"
                   required
@@ -354,16 +422,16 @@ const DetailDesainTaman = ({ params }) => {
 
               <div className="mb-2">
                 <label
-                  htmlFor="email"
+                  htmlFor="nama"
                   className="block text-gray-700 font-medium mb-1"
                 >
-                  Email
+                  Nama
                 </label>
                 <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
+                  type="text"
+                  id="nama"
+                  name="nama"
+                  value={formDesain.nama}
                   onChange={handleFormChange}
                   className="w-full border-2 border-gray-300 rounded-lg p-2"
                   required
@@ -381,45 +449,146 @@ const DetailDesainTaman = ({ params }) => {
                   type="tel"
                   id="telepon"
                   name="telepon"
-                  value={formData.telepon}
+                  value={formDesain.telepon}
                   onChange={handleFormChange}
                   className="w-full border-2 border-gray-300 rounded-lg p-2"
                   required
                 />
               </div>
 
-              <div className="mb-2">
+              <div className="mb-4">
                 <label
                   htmlFor="alamat"
                   className="block text-gray-700 font-medium mb-1"
                 >
-                  Alamat Lokasi Taman
+                  Alamat
                 </label>
                 <textarea
                   id="alamat"
                   name="alamat"
-                  value={formData.alamat}
+                  value={formDesain.alamat}
                   onChange={handleFormChange}
                   className="w-full border-2 border-gray-300 rounded-lg p-2 h-24"
                   required
                 />
               </div>
 
-              <div className="mb-6">
+              {/* Input Foto Pekarangan - DIUBAH menjadi input file */}
+              <div className="mb-4">
                 <label
-                  htmlFor="catatanTambahan"
+                  htmlFor="fotoPekarangan"
                   className="block text-gray-700 font-medium mb-1"
                 >
-                  Catatan Tambahan (opsional)
+                  Foto Pekarangan
                 </label>
-                <textarea
-                  id="catatanTambahan"
-                  name="catatanTambahan"
-                  value={formData.catatanTambahan}
-                  onChange={handleFormChange}
-                  className="w-full border-2 border-gray-300 rounded-lg p-2 h-24"
-                  placeholder="Deskripsi kondisi lahan, kebutuhan, atau pertanyaan lainnya..."
-                />
+                
+                <div className="border-2 border-gray-300 rounded-lg p-4">
+                  {/* Tampilkan preview jika ada gambar */}
+                  {previews.fotoPekarangan ? (
+                    <div className="mb-2">
+                      <div className="relative">
+                        <img 
+                          src={previews.fotoPekarangan} 
+                          alt="Preview foto pekarangan" 
+                          className="w-full max-h-64 object-contain rounded"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage('fotoPekarangan')}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {formDesain.fotoPekarangan.name}
+                      </p>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-center justify-center bg-gray-100 rounded-lg p-4 cursor-pointer"
+                      onClick={() => document.getElementById('fotoPekarangan').click()}
+                    >
+                      <div className="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p className="mt-2 text-sm text-gray-500">Klik untuk upload foto pekarangan</p>
+                        <p className="text-xs text-gray-400">JPG, PNG, atau GIF (Maks. 5MB)</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Input file tersembunyi yang akan diklik */}
+                  <input
+                    type="file"
+                    id="fotoPekarangan"
+                    name="fotoPekarangan"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Input Foto Inspirasi - DIUBAH menjadi input file */}
+              <div className="mb-6">
+                <label
+                  htmlFor="fotoInspirasi"
+                  className="block text-gray-700 font-medium mb-1"
+                >
+                  Foto Inspirasi
+                </label>
+                
+                <div className="border-2 border-gray-300 rounded-lg p-4">
+                  {previews.fotoInspirasi ? (
+                    <div className="mb-2">
+                      <div className="relative">
+                        <img 
+                          src={previews.fotoInspirasi} 
+                          alt="Preview foto inspirasi" 
+                          className="w-full max-h-64 object-contain rounded"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage('fotoInspirasi')}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {formDesain.fotoInspirasi.name}
+                      </p>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex items-center justify-center bg-gray-100 rounded-lg p-4 cursor-pointer"
+                      onClick={() => document.getElementById('fotoInspirasi').click()}
+                    >
+                      <div className="text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p className="mt-2 text-sm text-gray-500">Klik untuk upload foto inspirasi</p>
+                        <p className="text-xs text-gray-400">JPG, PNG, atau GIF (Maks. 5MB)</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <input
+                    type="file"
+                    id="fotoInspirasi"
+                    name="fotoInspirasi"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-between">
