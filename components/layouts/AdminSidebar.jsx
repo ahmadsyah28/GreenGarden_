@@ -12,6 +12,9 @@ import {
   FaClipboardList, 
   FaBars, 
   FaTimes,
+  FaHands,
+  FaLeaf,
+  FaPaintBrush,
   FaSignOutAlt
 } from "react-icons/fa";
 
@@ -76,9 +79,19 @@ const AdminSidebar = () => {
       path: "/admin/blog",
     },
     {
-      name: "Kelola Product",
-      icon: <FaBoxes className="text-xl" />,
-      path: "/admin/products",
+      name: "Kelola Tanaman Hias",
+      icon: <FaLeaf className="text-xl" />,
+      path: "/admin/tanaman-hias",
+    },
+    {
+      name: "Kelola Desain Taman",
+      icon: <FaPaintBrush className="text-xl" />,
+      path: "/admin/desain-taman",
+    },
+    {
+      name: "Kelola Perawatan Taman",
+      icon: <FaHands className="text-xl" />,
+      path: "/admin/perawatan-tanaman",
     },
     {
       name: "Lihat Semua Pesanan",
