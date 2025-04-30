@@ -47,7 +47,7 @@ export async function POST(req) {
         role: user.role,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '30m' }
     );
     
     // Buat response
@@ -68,7 +68,7 @@ export async function POST(req) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 86400, // 24 jam
+      maxAge: 1800, // 30 menit
       path: '/',
     });
     
