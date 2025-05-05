@@ -1,29 +1,36 @@
 // app/api/desains/[id]/route.js
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import DesainTaman from '@/models/DesainTaman';
+import DesainTaman from '@/models/Desain';
 
 export async function GET(request, { params }) {
+  const { id } = await params;
+  console.log("GET /api/desains/[id] - Request diterima, ID:", id);
   try {
-    const { id } = params;
+    console.log("Menghubungkan ke database...");
     await dbConnect();
+    console.log("Koneksi database berhasil, mencari desain dengan ID:", id);
     
     const desain = await DesainTaman.findById(id);
+    console.log("Hasil pencarian desain:", desain ? "Ditemukan" : "Tidak ditemukan");
     
     if (!desain) {
       return NextResponse.json({ error: 'Desain tidak ditemukan' }, { status: 404 });
     }
     
-    return NextResponse.json(desain, { status: 200 });
+    return NextResponse.json(desain);
   } catch (error) {
+    console.error("Error saat mengambil desain:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function PUT(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const data = await request.json();
+    console.log("PUT /api/desains/[id] - Data yang diterima:", data);
+    
     await dbConnect();
     
     // Validate status
@@ -44,15 +51,17 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Desain tidak ditemukan' }, { status: 404 });
     }
     
+    console.log("Desain berhasil diupdate:", desain);
     return NextResponse.json(desain, { status: 200 });
   } catch (error) {
+    console.error("Error saat update desain:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function DELETE(request, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await dbConnect();
     
     const desain = await DesainTaman.findByIdAndDelete(id);
@@ -63,6 +72,7 @@ export async function DELETE(request, { params }) {
     
     return NextResponse.json({ message: 'Desain berhasil dihapus' }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+    console.error("Error saat hapus desain:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+}
 }

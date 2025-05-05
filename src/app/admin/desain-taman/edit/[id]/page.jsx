@@ -1,12 +1,11 @@
-// app/admin/desain-taman/edit/[id]/page.js
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { FaLeaf, FaArrowLeft, FaSave, FaImage, FaPlus } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 
 export default function EditDesainPage({ params }) {
-  const { id } = params;
+  const { id } = use(params);
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +21,7 @@ export default function EditDesainPage({ params }) {
     description: "",
     care: "",
     requirements: "",
-    status: "Availble",
+    status: "Available",
     features: [""],
     minArea: "0",
     maxArea: "0",
@@ -45,6 +44,9 @@ export default function EditDesainPage({ params }) {
         const categoriesResponse = await fetch('/api/categories?type=DesainTaman');
         const categoriesData = await categoriesResponse.json();
 
+        console.log("Response status:", desainResponse.status);
+        console.log("Data yang diterima:", desainData);
+
         if (desainResponse.ok && categoriesResponse.ok) {
           // Format price
           const formattedPrice = new Intl.NumberFormat("id-ID").format(desainData.price);
@@ -57,7 +59,7 @@ export default function EditDesainPage({ params }) {
             description: desainData.description || "",
             care: desainData.care || "",
             requirements: desainData.requirements || "",
-            status: desainData.status || "Availble",
+            status: desainData.status || "Available",
             features: desainData.features?.length > 0 ? desainData.features : [""],
             minArea: desainData.minArea?.toString() || "0",
             maxArea: desainData.maxArea?.toString() || "0",
@@ -426,7 +428,7 @@ export default function EditDesainPage({ params }) {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#50806B] focus:border-transparent"
                 >
-                  <option value="Availble">Availble</option>
+                  <option value="Available">Available</option>
                   <option value="Not Available">Not Available</option>
                 </select>
               </div>

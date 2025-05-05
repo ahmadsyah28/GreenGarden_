@@ -1,4 +1,3 @@
-// app/admin/desain-taman/page.js
 "use client";
 
 import { useState, useEffect } from "react";
@@ -39,7 +38,9 @@ export default function DesainManagementPage() {
         const desainsData = await desainsResponse.json();
 
         // Fetch categories khusus untuk desain taman
-        const categoriesResponse = await fetch("/api/categories?type=DesainTaman");
+        const categoriesResponse = await fetch(
+          "/api/categories?type=DesainTaman"
+        );
         const categoriesData = await categoriesResponse.json();
 
         if (desainsResponse.ok && categoriesResponse.ok) {
@@ -96,7 +97,10 @@ export default function DesainManagementPage() {
   // Calculate pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentDesains = filteredDesains.slice(indexOfFirstItem, indexOfLastItem);
+  const currentDesains = filteredDesains.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
   const totalPages = Math.ceil(filteredDesains.length / itemsPerPage);
 
   // Change page
@@ -118,7 +122,9 @@ export default function DesainManagementPage() {
 
       if (response.ok) {
         // Remove design from state
-        setDesains(desains.filter((desain) => desain._id !== desainToDelete._id));
+        setDesains(
+          desains.filter((desain) => desain._id !== desainToDelete._id)
+        );
         alert("Desain berhasil dihapus!");
       } else {
         const data = await response.json();
@@ -153,7 +159,9 @@ export default function DesainManagementPage() {
   return (
     <div className="p-1">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Kelola Desain Taman</h1>
+        <h1 className="text-3xl font-bold text-gray-800">
+          Kelola Desain Taman
+        </h1>
         <p className="text-gray-600 mt-1">
           Kelola inventaris desain dan lihat stok Green Garden
         </p>
@@ -195,9 +203,14 @@ export default function DesainManagementPage() {
               <FaBoxOpen className="text-yellow-600" />
             </div>
             <div className="ml-4">
-              <p className="text-gray-600 text-sm font-medium">Desain Tersedia</p>
+              <p className="text-gray-600 text-sm font-medium">
+                Desain Tersedia
+              </p>
               <h3 className="text-2xl font-bold text-gray-800">
-                {desains.filter((desain) => desain.status === "In Stock").length}
+                {
+                  desains.filter((desain) => desain.status === "Available")
+                    .length
+                }
               </h3>
             </div>
           </div>
@@ -243,8 +256,8 @@ export default function DesainManagementPage() {
             className="block w-full py-2 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#50806B] focus:border-transparent"
           >
             <option value="Semua">Semua Status</option>
-            <option value="In Stock">In Stock</option>
-            <option value="Out of Stock">Out of Stock</option>
+            <option value="Available">Available</option>
+            <option value="Not Available">Not Available</option>
           </select>
         </div>
 
@@ -351,12 +364,12 @@ export default function DesainManagementPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {formatPrice(desain.price)}
                   </td>
-                 
+
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                       ${
-                        desain.status === "In Stock"
+                        desain.status === "Available"
                           ? "bg-green-100 text-green-800"
                           : "bg-red-100 text-red-800"
                       }`}
@@ -503,9 +516,6 @@ export default function DesainManagementPage() {
       {showDeleteModal && (
         <div className="fixed z-50 inset-0 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
