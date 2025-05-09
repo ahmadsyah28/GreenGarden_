@@ -91,7 +91,7 @@ const AdminSidebar = () => {
     {
       name: "Kelola Perawatan Taman",
       icon: <FaHands className="text-xl" />,
-      path: "/admin/perawatan-tanaman",
+      path: "/admin/perawatan-taman",
     },
     {
       name: "Lihat Semua Pesanan",
