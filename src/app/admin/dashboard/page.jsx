@@ -54,7 +54,7 @@ const recentUsers = [
 
 export default function AdminDashboardPage() {
   return (
-    <div>
+    <div className="bg-white">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Dashboard Admin</h1>
         <p className="text-gray-600 mt-1">Selamat datang di panel admin Green Garden</p>

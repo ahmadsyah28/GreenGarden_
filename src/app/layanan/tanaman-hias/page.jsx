@@ -17,7 +17,7 @@ const TanamanHias = () => {
   };
 
   return (
-    <div className="container">
+    <div className="container bg-white">
       {/* Header */}
       <div id="header-tanaman-hias" className="h-24 bg-[#89A99A] flex">
         <p className="text-[#404041] my-auto text-3xl font-bold ml-[77px]">

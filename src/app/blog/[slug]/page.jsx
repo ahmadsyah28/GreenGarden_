@@ -360,7 +360,7 @@ const BlogDetail = ({ params }) => {
   }
 
   return (
-    <div className="container mx-auto px-4 md:px-[77px] py-8">
+    <div className="container mx-auto px-4 md:px-[77px] py-8 bg-white">
       {/* Back button */}
       <div className="mb-6">
         <Link href="/blog" className="text-[#50806B] hover:underline flex items-center">

@@ -63,7 +63,7 @@ const PricePackage = ({ name, price }) => {
   }).format(price).replace('Rp', '');
   
   return (
-    <div className="py-3 px-5 border-2 border-slate-500 shadow-xl rounded-[20px] w-full sm:w-auto transform transition duration-300 hover:scale-105 hover:border-primary">
+    <div className="py-3 px-5 border-2 border-slate-500 shadow-xl rounded-[20px] w-full sm:w-auto transform transition duration-300 hover:scale-105 hover:border-primary bg-white">
       <p className="text-[#404041] text-xl md:text-2xl font-semibold">
         {name}
       </p>

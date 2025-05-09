@@ -271,7 +271,7 @@ export default function AddDesainPage() {
   };
 
   return (
-    <div className="p-1">
+    <div className="p-1 bg-white">
       <div className="mb-6">
         <div className="flex items-center mb-2">
           <button

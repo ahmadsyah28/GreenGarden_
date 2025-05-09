@@ -64,7 +64,7 @@ export default function Login() {
   };
 
   return (
-    <div className="container mx-auto px-4 md:px-[77px] py-8 flex flex-col md:flex-row gap-8">
+    <div className="container mx-auto px-4 md:px-[77px] py-8 flex flex-col md:flex-row gap-8 bg-white">
       {/* Image Section */}
       <div className="w-full md:w-1/2 flex flex-col justify-center">
         <Link href="/" className="inline-flex items-center text-[#285A43] font-semibold mb-3 hover:underline md:ml-40">

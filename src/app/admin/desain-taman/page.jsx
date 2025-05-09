@@ -157,7 +157,7 @@ export default function DesainManagementPage() {
   }
 
   return (
-    <div className="p-1">
+    <div className="p-1 bg-white">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800">
           Kelola Desain Taman

@@ -105,7 +105,7 @@ const KeranjangPage = () => {
   const isCartEmpty = cartItems.length === 0;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 bg-white">
       {/* Header */}
       <div className="flex items-center mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-[#404041]">Keranjang Belanja</h1>

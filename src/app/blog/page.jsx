@@ -76,7 +76,7 @@ const blogPosts = [
 // Featured blog post component
 const FeaturedPost = ({ post }) => {
   return (
-    <div className="flex flex-col md:flex-row w-full gap-6 md:gap-10">
+    <div className="flex flex-col md:flex-row w-full gap-6 md:gap-10 bg-white">
       <div className="w-full md:w-1/2">
         <div className="relative w-full aspect-[4/3] md:h-[400px]">
           <Image

@@ -135,7 +135,7 @@ export default function Register() {
       </div>
 
       {/* Form Section */}
-      <div className="w-full md:w-1/2 flex flex-col justify-center mt-4 md:mt-0">
+      <div className="w-full md:w-1/2 flex flex-col justify-center mt-4 md:mt-0 bg-white">
         <h1 className="text-2xl md:text-3xl font-bold">Daftar Akun</h1>
         <p className="text-base md:text-lg font-medium text-gray-600 mb-6">
           Pastikan data yang Anda masukkan benar

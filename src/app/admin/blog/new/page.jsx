@@ -187,7 +187,7 @@ export default function NewBlogArticlePage() {
   };
 
   return (
-    <div className="p-1">
+    <div className="p-1 bg-white">
       <div className="mb-6 flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Tulis Artikel Baru</h1>

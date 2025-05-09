@@ -1,489 +1,329 @@
+// src/app/admin/perawatan-taman/page.jsx
 "use client";
 
-import { useState } from "react";
-import { FaLeaf, FaSearch, FaPlus, FaEdit, FaTrash, FaEye, FaTags, FaBoxOpen } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import {
+  FaLeaf,
+  FaSearch,
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaCalendarAlt,
+  FaRuler,
+  FaClipboardCheck,
+} from "react-icons/fa";
+import { useRouter } from "next/navigation";
 
-// Example products data - in a real application, this would come from an API
-const initialProducts = [
-  {
-    id: 1,
-    name: "Monstera Deliciosa",
-    category: "Tanaman Hias",
-    price: 175000,
-    stock: 24,
-    status: "In Stock",
-    featured: true,
-    image: "/images/plants/monstera.jpg"
-  },
-  {
-    id: 2,
-    name: "Aloe Vera",
-    category: "Tanaman Herbal",
-    price: 45000,
-    stock: 38,
-    status: "In Stock",
-    featured: false,
-    image: "/images/plants/aloe.jpg"
-  },
-  {
-    id: 3,
-    name: "Fiddle Leaf Fig",
-    category: "Tanaman Hias",
-    price: 230000,
-    stock: 12,
-    status: "In Stock",
-    featured: true,
-    image: "/images/plants/fiddle-leaf.jpg"
-  },
-  {
-    id: 4,
-    name: "Snake Plant",
-    category: "Tanaman Hias",
-    price: 95000,
-    stock: 30,
-    status: "In Stock",
-    featured: false,
-    image: "/images/plants/snake-plant.jpg"
-  },
-  {
-    id: 5,
-    name: "Peace Lily",
-    category: "Tanaman Hias",
-    price: 120000,
-    stock: 18,
-    status: "In Stock",
-    featured: false,
-    image: "/images/plants/peace-lily.jpg"
-  },
-  {
-    id: 6,
-    name: "Basil",
-    category: "Tanaman Herbal",
-    price: 35000,
-    stock: 0,
-    status: "Out of Stock",
-    featured: false,
-    image: "/images/plants/basil.jpg"
-  },
-  {
-    id: 7,
-    name: "Spider Plant",
-    category: "Tanaman Hias",
-    price: 68000,
-    stock: 22,
-    status: "In Stock",
-    featured: false,
-    image: "/images/plants/spider-plant.jpg"
-  },
-  {
-    id: 8,
-    name: "ZZ Plant",
-    category: "Tanaman Hias",
-    price: 115000,
-    stock: 15,
-    status: "In Stock",
-    featured: true,
-    image: "/images/plants/zz-plant.jpg"
-  },
-  {
-    id: 9,
-    name: "Mint",
-    category: "Tanaman Herbal",
-    price: 28000,
-    stock: 0,
-    status: "Out of Stock",
-    featured: false,
-    image: "/images/plants/mint.jpg"
-  },
-  {
-    id: 10,
-    name: "Pothos",
-    category: "Tanaman Hias",
-    price: 65000,
-    stock: 25,
-    status: "In Stock",
-    featured: false,
-    image: "/images/plants/pothos.jpg"
-  }
-];
-
-// Categories for filter
-const categories = ["Semua", "Tanaman Hias", "Tanaman Herbal", "Tanaman Buah", "Tanaman Sayur", "Bibit", "Pupuk", "Aksesoris"];
-
-export default function ProductsManagementPage() {
-  const [products, setProducts] = useState(initialProducts);
+export default function GardenCareManagementPage() {
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("Semua");
-  const [selectedStatus, setSelectedStatus] = useState("Semua");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [selectedSize, setSelectedSize] = useState("Semua");
+  const [selectedDuration, setSelectedDuration] = useState("Semua");
+  const [gardenSizes, setGardenSizes] = useState(["Semua"]);
+  const [durations, setDurations] = useState(["Semua"]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [productToDelete, setProductToDelete] = useState(null);
-  const [sortConfig, setSortConfig] = useState({
-    key: 'id',
-    direction: 'ascending'
-  });
+  const [packageToDelete, setPackageToDelete] = useState(null);
+  const router = useRouter();
 
-  // Sort products
-  const sortedProducts = [...products].sort((a, b) => {
-    if (a[sortConfig.key] < b[sortConfig.key]) {
-      return sortConfig.direction === 'ascending' ? -1 : 1;
-    }
-    if (a[sortConfig.key] > b[sortConfig.key]) {
-      return sortConfig.direction === 'ascending' ? 1 : -1;
-    }
-    return 0;
-  });
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch("/api/garden-cares");
+        const gardenPackages = await response.json();
 
-  // Request a sort
-  const requestSort = (key) => {
-    let direction = 'ascending';
-    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
-    setSortConfig({ key, direction });
-  };
+        if (response.ok) {
+          setPackages(gardenPackages);
 
-  // Filter products based on search term, category, and status
-  const filteredProducts = sortedProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "Semua" || product.category === selectedCategory;
-    const matchesStatus = selectedStatus === "Semua" || product.status === selectedStatus;
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
+          // Extract unique garden sizes
+          const sizes = [...new Set(gardenPackages.map((pkg) => pkg.size))];
+          setGardenSizes(["Semua", ...sizes]);
 
-  // Calculate pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+          // Extract unique durations
+          const allDurations = gardenPackages.flatMap((pkg) =>
+            pkg.options.map((option) => {
+              if (option.name.includes("1 Kali")) return "One-time";
+              if (option.name.includes("3 Bulan")) return "3 Months";
+              if (option.name.includes("6 bulan")) return "6 Months";
+              return option.name;
+            })
+          );
+          const uniqueDurations = [...new Set(allDurations)];
+          setDurations(["Semua", ...uniqueDurations]);
+        } else {
+          console.error("Gagal mengambil data:", gardenPackages.error);
+          alert("Terjadi kesalahan saat mengambil data paket");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        alert("Terjadi kesalahan saat mengambil data paket");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Handle page change
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+    fetchData();
+  }, []);
 
-  // Handle delete product
-  const handleDeleteClick = (product) => {
-    setProductToDelete(product);
+  const handleDeleteClick = (pkg) => {
+    setPackageToDelete(pkg);
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
-    setProducts(products.filter(product => product.id !== productToDelete.id));
-    setShowDeleteModal(false);
-    setProductToDelete(null);
+  const confirmDelete = async () => {
+    if (!packageToDelete) return;
+
+    try {
+      const response = await fetch("/api/garden-cares", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: packageToDelete.id }),
+      });
+
+      if (response.ok) {
+        setPackages(packages.filter((pkg) => pkg.id !== packageToDelete.id));
+        alert("Paket perawatan berhasil dihapus!");
+      } else {
+        const data = await response.json();
+        alert(`Gagal menghapus paket: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Terjadi kesalahan saat menghapus paket perawatan.");
+    } finally {
+      setShowDeleteModal(false);
+      setPackageToDelete(null);
+    }
   };
 
   // Format price with Indonesian Rupiah
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
     }).format(price);
   };
 
+  // Filter packages
+  const filteredPackages = packages.filter((pkg) => {
+    const matchesSearch = pkg.title
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesSize =
+      selectedSize === "Semua" || pkg.size === selectedSize;
+    const matchesDuration =
+      selectedDuration === "Semua" ||
+      pkg.options.some((option) => {
+        if (selectedDuration === "One-time")
+          return option.name.includes("1 Kali");
+        if (selectedDuration === "3 Months")
+          return option.name.includes("3 Bulan");
+        if (selectedDuration === "6 Months")
+          return option.name.includes("6 bulan");
+        return false;
+      });
+    return matchesSearch && matchesSize && matchesDuration;
+  });
+
+  if (loading) {
+    return (
+      <div className="p-1 flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#50806B]"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-1">
+    <div className="p-1 bg-white">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Kelola Produk</h1>
-        <p className="text-gray-600 mt-1">Kelola inventaris produk dan lihat stok Green Garden</p>
+        <h1 className="text-3xl font-bold text-gray-800">
+          Kelola Perawatan Taman
+        </h1>
+        <p className="text-gray-600 mt-1">
+          Kelola paket perawatan taman Green Garden
+        </p>
       </div>
 
-      {/* Product Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-md p-6">
           <div className="flex items-center">
             <div className="p-3 bg-green-100 rounded-lg">
               <FaLeaf className="text-green-600" />
             </div>
             <div className="ml-4">
-              <p className="text-gray-600 text-sm font-medium">Total Produk</p>
-              <h3 className="text-2xl font-bold text-gray-800">{products.length}</h3>
+              <p className="text-gray-600 text-sm font-medium">Total Paket</p>
+              <h3 className="text-2xl font-bold text-gray-800">{packages.length}</h3>
             </div>
           </div>
         </div>
-        
         <div className="bg-white rounded-xl shadow-md p-6">
           <div className="flex items-center">
             <div className="p-3 bg-blue-100 rounded-lg">
-              <FaTags className="text-blue-600" />
+              <FaRuler className="text-blue-600" />
             </div>
             <div className="ml-4">
-              <p className="text-gray-600 text-sm font-medium">Produk Unggulan</p>
-              <h3 className="text-2xl font-bold text-gray-800">
-                {products.filter(product => product.featured).length}
-              </h3>
+              <p className="text-gray-600 text-sm font-medium">Ukuran Taman</p>
+              <h3 className="text-2xl font-bold text-gray-800">{gardenSizes.length - 1}</h3>
             </div>
           </div>
         </div>
-        
         <div className="bg-white rounded-xl shadow-md p-6">
           <div className="flex items-center">
             <div className="p-3 bg-yellow-100 rounded-lg">
-              <FaBoxOpen className="text-yellow-600" />
+              <FaCalendarAlt className="text-yellow-600" />
             </div>
             <div className="ml-4">
-              <p className="text-gray-600 text-sm font-medium">Stok Tersedia</p>
-              <h3 className="text-2xl font-bold text-gray-800">
-                {products.filter(product => product.stock > 0).length}
-              </h3>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-red-100 rounded-lg">
-              <FaBoxOpen className="text-red-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-gray-600 text-sm font-medium">Stok Habis</p>
-              <h3 className="text-2xl font-bold text-gray-800">
-                {products.filter(product => product.stock === 0).length}
-              </h3>
+              <p className="text-gray-600 text-sm font-medium">Durasi</p>
+              <h3 className="text-2xl font-bold text-gray-800">{durations.length - 1}</h3>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Actions Row */}
+      {/* Action Row */}
       <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
-        {/* Search Bar */}
         <div className="relative flex-1">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <FaSearch className="text-gray-400" />
           </div>
           <input
             type="text"
-            placeholder="Cari produk..."
+            placeholder="Cari paket..."
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#50806B] focus:border-transparent"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
-        {/* Category Filter */}
         <div className="w-full md:w-48">
           <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            value={selectedSize}
+            onChange={(e) => setSelectedSize(e.target.value)}
             className="block w-full py-2 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#50806B] focus:border-transparent"
           >
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
+            {gardenSizes.map((size) => (
+              <option key={size} value={size}>
+                {size}
               </option>
             ))}
           </select>
         </div>
-
-        {/* Status Filter */}
         <div className="w-full md:w-48">
           <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            value={selectedDuration}
+            onChange={(e) => setSelectedDuration(e.target.value)}
             className="block w-full py-2 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#50806B] focus:border-transparent"
           >
-            <option value="Semua">Semua Status</option>
-            <option value="In Stock">In Stock</option>
-            <option value="Out of Stock">Out of Stock</option>
+            {durations.map((duration) => (
+              <option key={duration} value={duration}>
+                {duration}
+              </option>
+            ))}
           </select>
         </div>
-
-        {/* Add Product Button */}
         <a
-          href="/admin/products/new"
+          href="/admin/perawatan-taman/new"
           className="flex items-center justify-center px-4 py-2 bg-[#50806B] text-white rounded-lg hover:bg-[#3d6854] transition-colors duration-300"
         >
           <FaPlus className="mr-2" />
-          Tambah Produk
+          Tambah Paket
         </a>
       </div>
 
-      {/* Products Table */}
+      {/* Packages Table */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('name')}>
-                  Produk
-                  {sortConfig.key === 'name' && (
-                    <span className="ml-1">{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
-                  )}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Paket
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('category')}>
-                  Kategori
-                  {sortConfig.key === 'category' && (
-                    <span className="ml-1">{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
-                  )}
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ukuran
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('price')}>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Harga
-                  {sortConfig.key === 'price' && (
-                    <span className="ml-1">{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
-                  )}
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('stock')}>
-                  Stok
-                  {sortConfig.key === 'stock' && (
-                    <span className="ml-1">{sortConfig.direction === 'ascending' ? '↑' : '↓'}</span>
-                  )}
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Unggulan
-                </th>
-                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Aksi
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {currentProducts.map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-12 w-12 rounded-md bg-gray-200 overflow-hidden">
-                        <div className="h-full w-full bg-gray-300 flex items-center justify-center">
-                          <FaLeaf className="text-[#50806B]" />
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                        <div className="text-xs text-gray-500">ID: {product.id}</div>
-                      </div>
+              {filteredPackages.map((pkg) => (
+                <tr key={pkg.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">
+                      {pkg.title}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {product.category}
+                      {pkg.size}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {formatPrice(product.price)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {product.stock}
+                    {pkg.options.map((option) => (
+                      <div key={option.id}>
+                        {option.name}: {formatPrice(option.price)}
+                      </div>
+                    ))}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${product.status === 'In Stock' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {product.status}
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        pkg.status === "Active"
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {pkg.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {product.featured ? (
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                        Ya
-                      </span>
-                    ) : (
-                      <span>Tidak</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a
-                      href={`/products/${product.id}`}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                      title="Lihat Produk"
-                    >
-                      <FaEye />
-                    </a>
-                    <a
-                      href={`/admin/products/edit/${product.id}`}
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      title="Edit Produk"
-                    >
-                      <FaEdit />
-                    </a>
-                    <button
-                      onClick={() => handleDeleteClick(product)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Hapus Produk"
-                    >
-                      <FaTrash />
-                    </button>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                    <div className="flex items-center justify-center gap-3">
+                      <a
+                        href={`/admin/perawatan-taman/edit/${pkg.id}`}
+                        className="text-indigo-600 hover:text-indigo-900"
+                        title="Edit Paket"
+                      >
+                        <FaEdit />
+                      </a>
+                      <button
+                        onClick={() => handleDeleteClick(pkg)}
+                        className="text-red-600 hover:text-red-900"
+                        title="Hapus Paket"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
-              {currentProducts.length === 0 && (
+              {filteredPackages.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
-                    Tidak ada produk yang ditemukan
+                  <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
+                    Tidak ada paket yang ditemukan
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
-                disabled={currentPage === 1}
-                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
-                disabled={currentPage === totalPages}
-                className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to <span className="font-medium">{Math.min(indexOfLastItem, filteredProducts.length)}</span> of{' '}
-                  <span className="font-medium">{filteredProducts.length}</span> results
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button
-                    onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
-                    disabled={currentPage === 1}
-                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
-                  >
-                    &lt;
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
-                    <button
-                      key={number}
-                      onClick={() => paginate(number)}
-                      className={`relative inline-flex items-center px-4 py-2 border ${currentPage === number ? 'bg-[#50806B] text-white border-[#50806B]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'} text-sm font-medium`}
-                    >
-                      {number}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
-                    disabled={currentPage === totalPages}
-                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
-                  >
-                    &gt;
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed z-50 inset-0 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
@@ -491,10 +331,12 @@ export default function ProductsManagementPage() {
                     <FaTrash className="text-red-600" />
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">Hapus Produk</h3>
+                    <h3 className="text-lg leading-6 font-medium text-gray-900">
+                      Hapus Paket Perawatan
+                    </h3>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Apakah Anda yakin ingin menghapus produk "{productToDelete?.name}"? Tindakan ini tidak dapat dibatalkan.
+                        Apakah Anda yakin ingin menghapus paket "{packageToDelete?.title}"? Tindakan ini tidak dapat dibatalkan.
                       </p>
                     </div>
                   </div>

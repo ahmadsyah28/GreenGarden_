@@ -84,7 +84,7 @@ const DesainTaman = () => {
   };
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto bg-white">
       {/* Header */}
       <div id="header-desain-taman" className="h-24 bg-[#89A99A] flex items-center">
         <p className="text-[#404041] text-3xl font-bold ml-5 md:ml-[77px]">

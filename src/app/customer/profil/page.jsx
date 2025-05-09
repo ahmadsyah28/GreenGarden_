@@ -97,7 +97,7 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 bg-white">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-[#404041] mb-8">Profil Saya</h1>
         

@@ -90,7 +90,7 @@ const CheckoutPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-[77px] py-8">
+    <div className="container mx-auto px-[77px] py-8 bg-white">
       {/* Header */}
       <div className="flex items-center mb-8 pl-5">
         <h1 className="text-2xl md:text-3xl font-bold text-[#404041]">Checkout</h1>

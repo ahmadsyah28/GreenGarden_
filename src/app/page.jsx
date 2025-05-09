@@ -54,7 +54,7 @@ const testimoni = [
 
 const Home = () => {
   return (
-    <div className="container mx-auto py-8 flex flex-col">
+    <div className="container mx-auto py-8 flex flex-col bg-white">
       {/* TAGLINE */}
       <section className="flex flex-col md:flex-row items-center px-[77px]">
         <div className="md:w-1/2 space-y-5 px-8">

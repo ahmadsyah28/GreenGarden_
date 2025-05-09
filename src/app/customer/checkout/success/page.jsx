@@ -34,7 +34,7 @@ const CheckoutSuccessPage = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-10 max-w-4xl">
+    <div className="container mx-auto px-4 py-10 max-w-4xl bg-white">
       <div className="bg-white rounded-lg shadow-lg p-6 md:p-10">
         {/* Success Icon & Message */}
         <div className="text-center mb-8">
