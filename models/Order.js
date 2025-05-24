@@ -1,48 +1,53 @@
-// models/Order.js
-import mongoose from "mongoose";
+// src/models/Order.js
+import mongoose from 'mongoose';
 
 const OrderSchema = new mongoose.Schema({
-  user_id: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: 'User',
     required: true,
   },
+  items: [
+    {
+      plantId: String,
+      nama: String,
+      harga: Number,
+      quantity: Number,
+      image: String,
+    },
+  ],
+  shippingInfo: {
+    nama: String,
+    email: String,
+    nomorTelepon: String,
+    alamat: String,
+    kota: String,
+    kodePos: String,
+    catatan: String,
+  },
+  shippingMethod: {
+    type: String,
+    enum: ['regular', 'express'],
+    required: true,
+  },
+  shippingCost: Number,
+  paymentMethod: {
+    type: String,
+    enum: ['transfer', 'ewallet', 'cod'],
+    required: true,
+  },
+  subtotal: Number,
+  voucherDiscount: Number,
+  total: Number,
   status: {
     type: String,
-    enum: ["pending", "processing", "completed", "cancelled"],
-    default: "pending",
+    enum: ['pending', 'processing', 'shipped', 'selesai', 'cancelled'],
+    default: 'pending',
   },
-  total_price: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  address: {
+  cancellationReason: {
     type: String,
-    required: true,
+    default: '',
   },
-  payment_method: {
-    type: String,
-    required: true,
-  },
-  processed_by: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    default: null,
-  },
-  created_at: {
-    type: Date,
-    default: Date.now,
-  },
-  updated_at: {
-    type: Date,
-    default: Date.now,
-  },
-});
+}, { timestamps: true });
 
-OrderSchema.pre("save", function (next) {
-  this.updated_at = Date.now();
-  next();
-});
-
-export default mongoose.models.Order || mongoose.model("Order", OrderSchema);
+export default mongoose.models.Order || mongoose.model('Order', OrderSchema);

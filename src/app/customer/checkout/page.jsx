@@ -1,39 +1,17 @@
 "use client";
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useContext } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FaArrowLeft, FaCreditCard, FaMoneyBillWave, FaWallet } from 'react-icons/fa';
+import AuthContext from '@/context/AuthContext';
 
 const CheckoutPage = () => {
-  // State untuk menyimpan item keranjang
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      nama: 'Marble Queen',
-      harga: 20000,
-      quantity: 2,
-      image: '/images/tanaman/tanaman1.png',
-      type: 'Tanaman Hias'
-    },
-    {
-      id: 2,
-      nama: 'Neon Pothos',
-      harga: 30000,
-      quantity: 1,
-      image: '/images/tanaman/tanaman2.png',
-      type: 'Tanaman Hias'
-    },
-    {
-      id: 5,
-      nama: 'Taman Minimalis Modern',
-      harga: 1500000,
-      quantity: 1,
-      image: '/images/desain/desain1.png',
-      type: 'Desain Taman'
-    }
-  ]);
-
-  // State untuk form checkout
+  const [cartItems, setCartItems] = useState([]);
+  const [voucherDiscount, setVoucherDiscount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     nama: '',
     email: '',
@@ -43,41 +21,128 @@ const CheckoutPage = () => {
     kodePos: '',
     catatan: '',
     metode_pengiriman: 'regular',
-    metode_pembayaran: 'transfer'
+    metode_pembayaran: 'transfer',
   });
+  const { isAuthenticated, user } = useContext(AuthContext);
+  const router = useRouter();
 
-  // Diskon dari halaman keranjang (jika ada)
-  const [voucherDiscount] = useState(0);
+  // Ambil data pengguna dan keranjang
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!isAuthenticated || !user) {
+        setError('Silakan login untuk melakukan checkout.');
+        setLoading(false);
+        return;
+      }
 
-  // Biaya pengiriman
-  const shippingCost = formData.metode_pengiriman === 'regular' ? 20000 : 45000;
+      setLoading(true);
+      try {
+        // Ambil data pengguna
+        const userResponse = await fetch(`/api/users/${user._id}`);
+        if (!userResponse.ok) {
+          const errorData = await userResponse.json();
+          throw new Error(errorData.error || 'Gagal mengambil data pengguna');
+        }
+        const userData = await userResponse.json();
 
-  // Subtotal
+        // Atur nilai awal form dengan data pengguna
+        setFormData(prev => ({
+          ...prev,
+          nama: userData.user.name || '',
+          email: userData.user.email || '',
+          nomorTelepon: userData.user.phone || '',
+        }));
+
+        // Ambil data keranjang
+        const cartResponse = await fetch(`/api/cart?userId=${user._id}`);
+        if (!cartResponse.ok) {
+          const errorData = await cartResponse.json();
+          throw new Error(errorData.error || 'Gagal mengambil keranjang');
+        }
+        const cartData = await cartResponse.json();
+        setCartItems(Array.isArray(cartData) ? cartData : []);
+      } catch (err) {
+        setError(err.message);
+        setCartItems([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isAuthenticated, user]);
+
+  // Hitung subtotal
   const calculateSubtotal = () => {
     return cartItems.reduce((total, item) => total + (item.harga * item.quantity), 0);
   };
 
-  // Total
+  // Hitung biaya pengiriman
+  const shippingCost = formData.metode_pengiriman === 'regular' ? 20000 : 45000;
+
+  // Hitung total
   const calculateTotal = () => {
     return calculateSubtotal() - voucherDiscount + shippingCost;
   };
 
-  // Handle form change
+  // Handle perubahan form
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
-  // Handle form submission
-  const handleSubmit = (e) => {
+  // Handle pengiriman form
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Proses pembayaran
-    alert('Pesanan Anda telah diterima! Terima kasih telah berbelanja.');
-    // Redirect ke halaman sukses atau halaman utama
-    window.location.href = '/customer/checkout/success';
+
+    if (!isAuthenticated || !user) {
+      alert('Silakan login untuk melanjutkan pembayaran.');
+      router.push('/login');
+      return;
+    }
+
+    if (cartItems.length === 0) {
+      alert('Keranjang Anda kosong.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user._id,
+          shippingInfo: {
+            nama: formData.nama,
+            email: formData.email,
+            nomorTelepon: formData.nomorTelepon,
+            alamat: formData.alamat,
+            kota: formData.kota,
+            kodePos: formData.kodePos,
+            catatan: formData.catatan,
+          },
+          shippingMethod: formData.metode_pengiriman,
+          paymentMethod: formData.metode_pembayaran,
+          voucherDiscount,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Gagal membuat pesanan');
+      }
+
+      alert('Pesanan Anda telah diterima! Terima kasih telah berbelanja.');
+      router.push(`/customer/checkout/success?orderId=${data.orderId}`);
+    } catch (err) {
+      console.error('Error creating order:', err);
+      alert(`Gagal membuat pesanan: ${err.message}`);
+    }
   };
 
   // Format harga ke Rupiah
@@ -88,6 +153,28 @@ const CheckoutPage = () => {
       minimumFractionDigits: 0,
     }).format(price);
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 bg-white text-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#50806B] mx-auto"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 bg-white text-center">
+        <p className="text-red-500">{error}</p>
+        <Link
+          href="/customer/layanan/tanaman-hias"
+          className="text-[#50806B] font-semibold mt-4 inline-block"
+        >
+          Kembali ke Tanaman Hias
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-[77px] py-8 bg-white">
@@ -300,7 +387,7 @@ const CheckoutPage = () => {
             {/* Daftar Produk */}
             <div className="border-b pb-4 mb-4">
               {cartItems.map((item) => (
-                <div key={item.id} className="flex items-center mb-4">
+                <div key={item.plantId} className="flex items-center mb-4">
                   <div className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
                     <Image
                       src={item.image}
