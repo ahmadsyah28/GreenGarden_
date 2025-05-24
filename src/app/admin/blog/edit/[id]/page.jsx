@@ -1,26 +1,39 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { FaBlog, FaImage, FaSave, FaTimes, FaEye, FaArrowLeft, FaPlus, FaTags, FaUpload, FaTrash } from "react-icons/fa";
 
-export default function NewBlogArticlePage() {
-  const [article, setArticle] = useState({
-    title: "",
-    category: "Tanaman Hias",
-    content: "",
-    tags: [],
-    featured: false,
-    status: "Draft",
-    featuredImage: null,
-    gallery: [],
-    author: "Admin",
-  });
+export default function EditBlogArticlePage({ params }) {
+  const { id } = params;
+  const router = useRouter();
+  const [article, setArticle] = useState(null);
   const [tagInput, setTagInput] = useState("");
   const [previewMode, setPreviewMode] = useState(false);
   const fileInputRef = useRef(null);
   const galleryInputRef = useRef(null);
 
   const categories = ["Tanaman Hias", "Tips & Tricks", "Organik", "Urban Gardening", "Tanaman Fungsional", "Herbal"];
+
+  // Fetch blog data
+  useEffect(() => {
+    const fetchBlog = async () => {
+      try {
+        const response = await fetch(`/api/blogs?id=${id}`);
+        const data = await response.json();
+        setArticle({
+          ...data,
+          featuredImage: data.featuredImage ? { preview: data.featuredImage } : null,
+          gallery: data.gallery.map(url => ({ preview: url })),
+        });
+      } catch (error) {
+        console.error('Failed to fetch blog:', error);
+      }
+    };
+    fetchBlog();
+  }, [id]);
+
+  if (!article) return <div>Loading...</div>;
 
   // Handle input changes
   const handleChange = (e) => {
@@ -148,20 +161,20 @@ export default function NewBlogArticlePage() {
         }
       });
 
-      const response = await fetch('/api/blogs', {
-        method: 'POST',
+      const response = await fetch(`/api/blogs?id=${id}`, {
+        method: 'PUT',
         body: formData,
       });
 
       if (response.ok) {
-        alert(`Artikel berhasil disimpan sebagai ${status}`);
-        window.location.href = '/admin/blog';
+        alert(`Artikel berhasil diperbarui sebagai ${status}`);
+        router.push('/admin/blog');
       } else {
-        alert('Gagal menyimpan artikel');
+        alert('Gagal memperbarui artikel');
       }
     } catch (error) {
-      console.error('Failed to save article:', error);
-      alert('Terjadi kesalahan saat menyimpan artikel');
+      console.error('Failed to update article:', error);
+      alert('Terjadi kesalahan saat memperbarui artikel');
     }
   };
 
@@ -185,8 +198,8 @@ export default function NewBlogArticlePage() {
     <div className="p-1 bg-white">
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Tulis Artikel Baru</h1>
-          <p className="text-gray-600 mt-1">Buat dan publikasikan artikel blog baru</p>
+          <h1 className="text-3xl font-bold text-gray-800">Edit Artikel</h1>
+          <p className="text-gray-600 mt-1">Perbarui artikel blog</p>
         </div>
         <div className="flex space-x-2">
           <a 
@@ -335,7 +348,7 @@ export default function NewBlogArticlePage() {
                   <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold mr-2">
                     {article.category}
                   </span>
-                  <span>Admin • {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  <span>{article.author} • {new Date(article.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                 </div>
               </div>
               <div className="article-content">
