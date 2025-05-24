@@ -1,24 +1,52 @@
 "use client";
-import React from "react";
-import { useEffect, useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { IoArrowBack } from "react-icons/io5";
-import { produkTanaman } from "@/src/app/utils/data";
 
-const DetailTanaman = ({ params }) => {
+export default function DetailTanaman({ params }) {
   const [tanaman, setTanaman] = useState(null);
+  const [recommendedPlants, setRecommendedPlants] = useState([]);
   const [jumlah, setJumlah] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Unwrap params using React.use
+  const { id } = React.use(params);
+
+  // Fetch plant details and recommended plants
   useEffect(() => {
-    // Mengambil id dari params.id dan mencari data tanaman sesuai id
-    if (params?.id) {
-      const tanamanData = produkTanaman.find(
-        (item) => item.id === parseInt(params.id)
-      );
-      setTanaman(tanamanData);
-    }
-  }, [params]);
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Fetch specific plant
+        const plantResponse = await fetch(`/api/plants/${id}`);
+        if (!plantResponse.ok) {
+          throw new Error("Failed to fetch plant details");
+        }
+        const plantData = await plantResponse.json();
+        setTanaman(plantData);
 
+        // Fetch recommended plants (exclude current plant)
+        const plantsResponse = await fetch("/api/plants");
+        if (!plantsResponse.ok) {
+          throw new Error("Failed to fetch recommended plants");
+        }
+        const plantsData = await plantsResponse.json();
+        setRecommendedPlants(
+          plantsData.filter((plant) => plant._id !== id).slice(0, 4)
+        );
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id]);
+
+  // Handle quantity changes
   const tambahJumlah = () => {
     setJumlah(jumlah + 1);
   };
@@ -29,11 +57,31 @@ const DetailTanaman = ({ params }) => {
     }
   };
 
-  if (!tanaman) {
+  // Format price in Indonesian Rupiah
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  if (loading) {
     return (
       <div className="container mx-auto px-4 py-10 text-center">
-        <p>Tanaman tidak ditemukan</p>
-        <Link href="/tanaman-hias" className="text-[#50806B] font-semibold mt-4 inline-block">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#50806B] mx-auto"></div>
+      </div>
+    );
+  }
+
+  if (error || !tanaman) {
+    return (
+      <div className="container mx-auto px-4 py-10 text-center">
+        <p>{error || "Tanaman tidak ditemukan"}</p>
+        <Link
+          href="/layanan/tanaman-hias"
+          className="text-[#50806B] font-semibold mt-4 inline-block"
+        >
           Kembali ke halaman tanaman
         </Link>
       </div>
@@ -42,11 +90,12 @@ const DetailTanaman = ({ params }) => {
 
   return (
     <div className="container mx-auto px-4 py-8 bg-white">
-  
-
       {/* Tombol Kembali */}
       <div className="mb-6 ml-[77px]">
-        <Link href="/tanaman-hias" className="flex items-center text-[#50806B] font-semibold">
+        <Link
+          href="/layanan/tanaman-hias"
+          className="flex items-center text-[#50806B] font-semibold"
+        >
           <IoArrowBack className="mr-2" />
           Kembali ke Tanaman Hias
         </Link>
@@ -58,8 +107,8 @@ const DetailTanaman = ({ params }) => {
         <div className="w-full md:w-2/5">
           <div className="border-2 border-slate-300 rounded-xl shadow-md overflow-hidden">
             <img
-              src={tanaman.src}
-              alt={tanaman.nama}
+              src={tanaman.image || "/placeholder-plant.png"}
+              alt={tanaman.name}
               className="w-full h-[400px] object-cover"
             />
           </div>
@@ -67,31 +116,46 @@ const DetailTanaman = ({ params }) => {
 
         {/* Informasi Tanaman */}
         <div className="w-full md:w-1/2">
-          <h1 className="text-3xl font-bold text-[#404041] mb-3">{tanaman.nama}</h1>
-          <p className="text-2xl text-[#50806B] font-semibold mb-6">{tanaman.harga}</p>
-          
+          <h1 className="text-3xl font-bold text-[#404041] mb-3">
+            {tanaman.name}
+          </h1>
+          <p className="text-2xl text-[#50806B] font-semibold mb-6">
+            {formatPrice(tanaman.price)}
+          </p>
+
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-[#404041] mb-2">Deskripsi</h2>
-            <p className="text-gray-700">{tanaman.deskripsi}</p>
+            <h2 className="text-xl font-semibold text-[#404041] mb-2">
+              Deskripsi
+            </h2>
+            <p className="text-gray-700">{tanaman.description}</p>
           </div>
-          
+
           <div className="mb-6">
-            <h2 className="text-xl font-semibold text-[#404041] mb-2">Perawatan</h2>
-            <p className="text-gray-700">{tanaman.perawatan}</p>
+            <h2 className="text-xl font-semibold text-[#404041] mb-2">
+              Perawatan
+            </h2>
+            <p className="text-gray-700">{tanaman.care || "Tidak ada informasi perawatan"}</p>
           </div>
-          
+
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-[#404041] mb-2">Kebutuhan</h2>
-            <p className="text-gray-700">{tanaman.kebutuhan}</p>
+            <h2 className="text-xl font-semibold text-[#404041] mb-2">
+              Kebutuhan
+            </h2>
+            <p className="text-gray-700">
+              {tanaman.requirements || "Tidak ada informasi kebutuhan"}
+            </p>
           </div>
-          
+
           {/* Jumlah */}
           <div className="flex items-center mb-8">
-            <span className="text-lg font-semibold text-[#404041] mr-4">Jumlah:</span>
+            <span className="text-lg font-semibold text-[#404041] mr-4">
+              Jumlah:
+            </span>
             <div className="flex items-center border-2 border-gray-300 rounded-lg">
               <button
                 onClick={kurangJumlah}
                 className="px-3 py-1 text-xl font-semibold"
+                disabled={jumlah <= 1}
               >
                 -
               </button>
@@ -99,55 +163,72 @@ const DetailTanaman = ({ params }) => {
               <button
                 onClick={tambahJumlah}
                 className="px-3 py-1 text-xl font-semibold"
+                disabled={tanaman.stock === 0 || jumlah >= tanaman.stock}
               >
                 +
               </button>
             </div>
           </div>
-          
+
           {/* Tombol Aksi */}
           <div className="flex gap-4">
-            <button className="bg-[#50806B] text-white py-3 px-6 rounded-xl text-lg font-semibold w-full md:w-auto">
+            <Link
+              href="/register"
+              className={`bg-[#50806B] text-white py-3 px-6 rounded-xl text-lg font-semibold w-full md:w-auto ${
+                tanaman.stock === 0 ? "bg-gray-400 pointer-events-none" : ""
+              }`}
+            >
               Tambah ke Keranjang
-            </button>
-            <button className="bg-white text-[#50806B] border-2 border-[#50806B] py-3 px-6 rounded-xl text-lg font-semibold w-full md:w-auto">
+            </Link>
+            <Link
+              href="/register"
+              className={`bg-white text-[#50806B] border-2 border-[#50806B] py-3 px-6 rounded-xl text-lg font-semibold w-full md:w-auto ${
+                tanaman.stock === 0
+                  ? "border-gray-400 text-gray-400 pointer-events-none"
+                  : ""
+              }`}
+            >
               Beli Sekarang
-            </button>
+            </Link>
           </div>
         </div>
       </div>
 
       {/* Rekomendasi Tanaman Lain */}
       <div className="mt-16 mx-[77px]">
-        <h2 className="text-2xl font-bold text-[#404041] mb-6">Tanaman Lainnya</h2>
+        <h2 className="text-2xl font-bold text-[#404041] mb-6">
+          Tanaman Lainnya
+        </h2>
         <div className="flex flex-wrap gap-6">
-          {produkTanaman
-            .filter((item) => item.id !== tanaman.id)
-            .slice(0, 4)
-            .map((produk) => (
-              <div
-                key={produk.id}
-                className="w-[220px] h-[300px] border-slate-300 border-2 shadow-lg border-opacity-75 rounded-[10px]"
+          {recommendedPlants.map((produk) => (
+            <div
+              key={produk._id}
+              className="w-[220px] h-[300px] border-slate-300 border-2 shadow-lg border-opacity-75 rounded-[10px]"
+            >
+              <img
+                src={produk.image || "/placeholder-plant.png"}
+                alt={produk.name}
+                className="w-full h-[150px] object-cover rounded-t-[10px]"
+              />
+              <p className="text-[#404041] font-semibold text-base mt-2 ml-3">
+                {produk.name}
+              </p>
+              <p className="text-[#404041] mt-2 ml-3">
+                {formatPrice(produk.price)}
+              </p>
+              <Link
+                href={`/layanan/tanaman-hias/${produk._id}`}
+                className="block w-[90%] mx-auto bg-[#50806B] text-white py-2 rounded-xl text-center font-semibold text-lg mt-4"
               >
-                <img
-                  src={produk.src}
-                  alt={produk.nama}
-                  className="w-full h-[150px] object-cover rounded-t-[10px]"
-                />
-                <p className="text-[#404041] font-semibold text-base mt-2 ml-3">{produk.nama}</p>
-                <p className="text-[#404041] mt-2 ml-3">{produk.harga}</p>
-                <Link
-                  href={`/tanaman-hias/${produk.id}`}
-                  className="block w-[90%] mx-auto bg-[#50806B] text-white py-2 rounded-xl text-center font-semibold text-lg mt-4"
-                >
-                  Detail
-                </Link>
-              </div>
-            ))}
+                Detail
+              </Link>
+            </div>
+          ))}
+          {recommendedPlants.length === 0 && (
+            <p className="text-gray-700">Tidak ada rekomendasi tanaman lainnya.</p>
+          )}
         </div>
       </div>
     </div>
   );
-};
-
-export default DetailTanaman;
+}
