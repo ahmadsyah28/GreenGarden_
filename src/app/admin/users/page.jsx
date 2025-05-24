@@ -1,24 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaUsers, FaSearch, FaUserPlus, FaEdit, FaTrash } from "react-icons/fa";
-
-// Example users data - in a real application, this would come from an API
-const initialUsers = [
-  { id: 1, name: "Anita Wijaya", email: "anita@example.com", role: "Customer", status: "Active", joinDate: "20 Apr 2025" },
-  { id: 2, name: "Rudi Hartono", email: "rudi@example.com", role: "Customer", status: "Active", joinDate: "19 Apr 2025" },
-  { id: 3, name: "Maya Indah", email: "maya@example.com", role: "Admin", status: "Active", joinDate: "18 Apr 2025" },
-  { id: 4, name: "Doni Kusuma", email: "doni@example.com", role: "Customer", status: "Inactive", joinDate: "17 Apr 2025" },
-  { id: 5, name: "Linda Sari", email: "linda@example.com", role: "Customer", status: "Active", joinDate: "16 Apr 2025" },
-  { id: 6, name: "Budi Santoso", email: "budi@example.com", role: "Customer", status: "Active", joinDate: "15 Apr 2025" },
-  { id: 7, name: "Dewi Lestari", email: "dewi@example.com", role: "Customer", status: "Active", joinDate: "14 Apr 2025" },
-  { id: 8, name: "Agus Wijaya", email: "agus@example.com", role: "Customer", status: "Active", joinDate: "13 Apr 2025" },
-  { id: 9, name: "Siti Rahayu", email: "siti@example.com", role: "Customer", status: "Inactive", joinDate: "12 Apr 2025" },
-  { id: 10, name: "Hendro Purnomo", email: "hendro@example.com", role: "Admin", status: "Active", joinDate: "11 Apr 2025" }
-];
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 export default function UsersManagementPage() {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(5);
@@ -27,17 +17,41 @@ export default function UsersManagementPage() {
   const [showAddEditModal, setShowAddEditModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editUser, setEditUser] = useState({
-    id: null,
     name: "",
     email: "",
-    role: "Customer",
-    status: "Active"
+    role: "customer",
+    password: "",
+    phone: ""
   });
+
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  // Fetch users from API
+  const fetchUsers = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/users');
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      const data = await response.json();
+      setUsers(data.users);
+      setError(null);
+    } catch (err) {
+      setError('Error loading users: ' + err.message);
+      console.error('Error fetching users:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filter users based on search term
   const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Calculate pagination
@@ -49,34 +63,68 @@ export default function UsersManagementPage() {
   // Handle page change
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      return format(date, "d MMM yyyy", { locale: id });
+    } catch (err) {
+      console.error("Date formatting error:", err);
+      return dateString;
+    }
+  };
+
   // Handle delete user
   const handleDeleteClick = (user) => {
     setUserToDelete(user);
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
-    setUsers(users.filter(user => user.id !== userToDelete.id));
-    setShowDeleteModal(false);
-    setUserToDelete(null);
+  const confirmDelete = async () => {
+    try {
+      const response = await fetch(`/api/users/${userToDelete._id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete user');
+      }
+
+      // Refresh users list
+      fetchUsers();
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      setError('Error deleting user: ' + err.message);
+    }
   };
 
   // Handle add/edit user
   const handleAddClick = () => {
     setIsEditing(false);
     setEditUser({
-      id: users.length + 1,
       name: "",
       email: "",
-      role: "Customer",
-      status: "Active"
+      role: "customer",
+      password: "",
+      phone: ""
     });
     setShowAddEditModal(true);
   };
 
   const handleEditClick = (user) => {
     setIsEditing(true);
-    setEditUser({ ...user });
+    setEditUser({
+      _id: user._id,
+      name: user.name || "",
+      email: user.email || "",
+      role: user.role || "customer",
+      phone: user.phone || "",
+      // Password is empty when editing an existing user
+      password: ""
+    });
     setShowAddEditModal(true);
   };
 
@@ -85,18 +133,50 @@ export default function UsersManagementPage() {
     setEditUser(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isEditing) {
-      setUsers(users.map(user => user.id === editUser.id ? editUser : user));
-    } else {
-      // Add current date for new users
-      const date = new Date();
-      const formattedDate = `${date.getDate()} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][date.getMonth()]} ${date.getFullYear()}`;
-      setUsers([...users, { ...editUser, joinDate: formattedDate }]);
+    
+    try {
+      let userData = { ...editUser };
+      
+      // If password is empty and we're editing, remove it from the request
+      if (isEditing && !userData.password) {
+        delete userData.password;
+      }
+
+      const url = isEditing 
+        ? `/api/users/${userData._id}` 
+        : '/api/users';
+        
+      const method = isEditing ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Operation failed');
+      }
+
+      // Refresh users list
+      fetchUsers();
+      setShowAddEditModal(false);
+    } catch (err) {
+      console.error('Error saving user:', err);
+      setError('Error saving user: ' + err.message);
     }
-    setShowAddEditModal(false);
   };
+
+  if (isLoading) return (
+    <div className="p-6 flex justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#50806B]"></div>
+    </div>
+  );
 
   return (
     <div className="p-1">
@@ -104,6 +184,12 @@ export default function UsersManagementPage() {
         <h1 className="text-3xl font-bold text-gray-800">Kelola Pengguna</h1>
         <p className="text-gray-600 mt-1">Kelola dan atur semua pengguna di Green Garden</p>
       </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
 
       {/* Actions Row */}
       <div className="flex flex-col md:flex-row justify-between mb-6 gap-4">
@@ -144,10 +230,10 @@ export default function UsersManagementPage() {
                   Email
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Peran
+                  Telepon
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  Peran
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tanggal Bergabung
@@ -159,7 +245,7 @@ export default function UsersManagementPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {currentUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
+                <tr key={user._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#50806B]/20 flex items-center justify-center text-[#50806B]">
@@ -174,8 +260,11 @@ export default function UsersManagementPage() {
                     <div className="text-sm text-gray-600">{user.email}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-600">{user.phone || '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-600">
-                      {user.role === "Admin" ? (
+                      {user.role === "admin" ? (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
                           Admin
                         </span>
@@ -186,13 +275,8 @@ export default function UsersManagementPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {user.status}
-                    </span>
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {user.joinDate}
+                    {formatDate(user.createdAt)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
@@ -283,9 +367,6 @@ export default function UsersManagementPage() {
       {showDeleteModal && (
         <div className="fixed z-50 inset-0 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
@@ -327,9 +408,7 @@ export default function UsersManagementPage() {
       {showAddEditModal && (
         <div className="fixed z-50 inset-0 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-              <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
-            </div>
+          
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <form onSubmit={handleSubmit}>
                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
@@ -364,6 +443,31 @@ export default function UsersManagementPage() {
                       />
                     </div>
                     <div>
+                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Telepon</label>
+                      <input
+                        type="text"
+                        name="phone"
+                        id="phone"
+                        value={editUser.phone || ''}
+                        onChange={handleInputChange}
+                        className="mt-1 focus:ring-[#50806B] focus:border-[#50806B] block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                        {isEditing ? 'Password (kosongkan jika tidak diubah)' : 'Password'}
+                      </label>
+                      <input
+                        type="password"
+                        name="password"
+                        id="password"
+                        required={!isEditing}
+                        value={editUser.password}
+                        onChange={handleInputChange}
+                        className="mt-1 focus:ring-[#50806B] focus:border-[#50806B] block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                      />
+                    </div>
+                    <div>
                       <label htmlFor="role" className="block text-sm font-medium text-gray-700">Peran</label>
                       <select
                         name="role"
@@ -372,21 +476,8 @@ export default function UsersManagementPage() {
                         onChange={handleInputChange}
                         className="mt-1 focus:ring-[#50806B] focus:border-[#50806B] block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
                       >
-                        <option value="Customer">Customer</option>
-                        <option value="Admin">Admin</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
-                      <select
-                        name="status"
-                        id="status"
-                        value={editUser.status}
-                        onChange={handleInputChange}
-                        className="mt-1 focus:ring-[#50806B] focus:border-[#50806B] block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
-                      >
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
+                        <option value="customer">Customer</option>
+                        <option value="admin">Admin</option>
                       </select>
                     </div>
                   </div>

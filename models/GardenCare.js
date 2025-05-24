@@ -1,6 +1,5 @@
 // models/GardenCare.js
-import mongoose from "mongoose";
-
+const mongoose = require("mongoose");
 const OptionSchema = new mongoose.Schema({
   id: { type: Number, required: true },
   name: { type: String, required: true },
