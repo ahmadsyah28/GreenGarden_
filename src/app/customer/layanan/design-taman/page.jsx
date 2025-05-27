@@ -1,87 +1,104 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { FaAngleRight, FaAngleDown } from "react-icons/fa";
-import { desainTamanData, desainCategories, sortOptions } from "@/src/app/utils/data";
-
-
-// Komponen ProductCard
-const ProductCard = ({ product }) => {
-  // Format harga
-  const formattedPrice = new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-  }).format(product.price);
-  
-  return (
-    <div className="w-[250px] h-[360px] border-slate-300 border-2 shadow-lg border-opacity-75 rounded-xl overflow-hidden">
-      <div className="relative w-[250px] h-[175px]">
-        <Image 
-          src={product.image} 
-          alt={product.name}
-          fill
-          className="object-cover rounded-t-xl"
-          sizes="250px"
-          priority={product.id <= 4}
-        />
-      </div>
-      <div className="p-3">
-        <p className="text-[#404041] font-semibold text-base truncate">{product.name}</p>
-        <p className="text-[#404041] mt-2">{formattedPrice}</p>
-        <p className="text-gray-500 text-sm mt-1">Luas: {product.minArea}-{product.maxArea} m²</p>
-        <Link 
-          href={`/layanan/design-taman/${product.id}`} 
-          className="block w-full bg-[#50806B] text-white py-2 rounded-xl text-center font-semibold text-lg mt-4"
-        >
-          Detail
-        </Link>
-      </div>
-    </div>
-  );
-};
+import { sortOptions } from "@/src/app/utils/data";
 
 const DesainTaman = () => {
-  const [openCategories, setOpenCategories] = useState({});
   const [selectedSort, setSelectedSort] = useState("Popular");
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const [filteredProducts, setFilteredProducts] = useState([...desainTamanData]);
-  const [searchArea, setSearchArea] = useState('');
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchArea, setSearchArea] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const toggleCategory = (categoryName) => {
-    setOpenCategories((prev) => ({
-      ...prev,
-      [categoryName]: !prev[categoryName],
-    }));
-  };
+  // Format harga
+  const formatPrice = (price) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(price);
 
-  // Fungsi untuk memfilter dan mengurutkan produk
+  // Ambil data desain dan kategori
   useEffect(() => {
-    let result = [...desainTamanData];
-    
-    // Filter berdasarkan luas yang diinput
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const desainResponse = await fetch("/api/desains");
+        if (!desainResponse.ok) throw new Error("Gagal mengambil data desain");
+        const desainData = await desainResponse.json();
+
+        const categoryResponse = await fetch("/api/categories?type=DesainTaman");
+        if (!categoryResponse.ok) throw new Error("Gagal mengambil data kategori");
+        const categoryData = await categoryResponse.json();
+        console.log("Kategori dari API:", categoryData);
+
+        setFilteredProducts(desainData);
+        setCategories(categoryData);
+      } catch (err) {
+        setError(err.message);
+        setFilteredProducts([]);
+        setCategories([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Filter dan urutkan desain
+  const sortedAndFilteredDesains = () => {
+    let result = [...filteredProducts];
+
+    // Filter berdasarkan luas
     if (searchArea && !isNaN(parseFloat(searchArea))) {
       const area = parseFloat(searchArea);
-      result = result.filter(product => 
-        area >= product.minArea && area <= product.maxArea
-      );
+      result = result.filter((product) => area >= product.minArea && area <= product.maxArea);
     }
-    
-    // Urutkan produk
+
+    // Filter berdasarkan kategori
+    if (selectedCategory !== "All") {
+      result = result.filter((product) => product.category === selectedCategory);
+    }
+
+    // Urutkan desain
     if (selectedSort === "Termurah") {
       result.sort((a, b) => a.price - b.price);
     } else if (selectedSort === "Termahal") {
       result.sort((a, b) => b.price - a.price);
     }
-    
-    setFilteredProducts(result);
-  }, [selectedSort, searchArea]);
+
+    console.log("Desain setelah filter:", result);
+    return result;
+  };
 
   // Handler untuk input luas
   const handleAreaSearch = (e) => {
     setSearchArea(e.target.value);
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 bg-white text-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#50806B] mx-auto"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8 bg-white text-center">
+        <p className="text-red-500">{error}</p>
+        <Link href="/" className="text-[#50806B] font-semibold mt-4 inline-block">
+          Kembali ke Beranda
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto bg-white">
@@ -97,77 +114,67 @@ const DesainTaman = () => {
       </div>
 
       {/* Market Place */}
-      <div className="flex flex-col md:flex-row">
+      <div className="flex h-auto">
         {/* Sidebar Filter */}
-        <div className="w-full md:w-[320px] h-full">
-          <div className="w-full md:w-56 p-4 mt-16 mx-auto md:ml-[77px] bg-white shadow-md rounded-lg">
-            <div className="mb-4">
+        <div className="w-[320px] h-full">
+          <div className="w-56 p-4 mt-16 ml-[77px] bg-white shadow-md rounded-lg">
+            <div className="mb-2">
               <div className="flex items-center gap-2 text-lg font-semibold">
                 All Categories
               </div>
               <p className="text-gray-500 text-sm">Desain on Sale</p>
             </div>
 
-            {/* Pencarian berdasarkan luas */}
-            <div className="mb-4 border-b pb-4">
-              <label htmlFor="area-search" className="block text-sm font-medium text-gray-700 mb-1">
-                Cari berdasarkan luas (m²)
-              </label>
-              <input
-                type="number"
-                id="area-search"
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                placeholder="Masukkan luas taman"
-                value={searchArea}
-                onChange={handleAreaSearch}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Masukkan luas taman Anda untuk menemukan desain yang cocok
-              </p>
+            {/* Opsi All */}
+            <div
+              className="flex items-center gap-2 font-semibold cursor-pointer mb-2 text-sm hover:text-[#50806B] py-1"
+              onClick={() => setSelectedCategory("All")}
+            >
+              <FaAngleRight className="w-4 h-4" />
+              All
             </div>
 
             {/* Category Loop */}
-            {desainCategories.map((category) => (
-              <div key={category.name} className="mb-2">
-                <div
-                  className="flex items-center gap-2 font-semibold cursor-pointer"
-                  onClick={() => toggleCategory(category.name)}
-                >
-                  {openCategories[category.name] ? (
-                    <FaAngleDown className="w-4 h-4" />
-                  ) : (
+            {categories.length > 0 ? (
+              categories.map((category) => (
+                <div key={category._id} className="mb-2">
+                  <div
+                    className="flex items-center gap-2 font-semibold cursor-pointer text-sm hover:text-[#50806B] py-1"
+                    onClick={() => setSelectedCategory(category.name)}
+                  >
                     <FaAngleRight className="w-4 h-4" />
-                  )}
-                  {category.name}
-                </div>
-
-                {openCategories[category.name] && (
-                  <div className="ml-6 text-gray-600">
-                    {category.items.length > 0 ? (
-                      category.items.map((item) => (
-                        <div key={item} className="flex items-center mt-1">
-                          <input 
-                            type="checkbox" 
-                            id={item} 
-                            className="mr-2" 
-                          />
-                          <label htmlFor={item}>{item}</label>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-gray-400">No items</p>
-                    )}
+                    {category.name}
                   </div>
-                )}
-              </div>
-            ))}
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-400 text-sm py-1">Tidak ada kategori tersedia</p>
+            )}
           </div>
         </div>
 
         {/* Produk dan Sort */}
-        <div className="w-full md:w-[calc(100%-320px)] p-4">
+        <div className="w-[1120px] ml-0 h-full p-4">
+          {/* Pencarian berdasarkan luas */}
+          <div className="mb-4 border-b pb-4">
+            <label htmlFor="area-search" className="block text-sm font-medium text-gray-700 mb-1">
+              Cari berdasarkan luas (m²)
+            </label>
+            <input
+              type="number"
+              id="area-search"
+              className="mt-1 block w-48 border border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Masukkan luas taman"
+              value={searchArea}
+              onChange={handleAreaSearch}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Masukkan luas taman Anda untuk menemukan desain yang cocok
+            </p>
+          </div>
+
           {/* Sort By Dropdown */}
-          <div className="relative rounded-[20px] w-48 mr-0 md:mr-[77px] mt-16 ml-auto">
+          <div className="relative rounded-[20px] w-48 mr-[77px] mt-4 ml-auto">
             <button
               onClick={() => setIsSortOpen(!isSortOpen)}
               className="w-full p-2 bg-white border border-gray-300 rounded-md flex justify-between items-center"
@@ -195,27 +202,34 @@ const DesainTaman = () => {
           </div>
 
           {/* Product Grid */}
-          <div className="mt-4 flex flex-wrap justify-center gap-8 md:gap-16">
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+          <div className="mt-4 flex flex-wrap justify-center gap-16">
+            {sortedAndFilteredDesains().length > 0 ? (
+              sortedAndFilteredDesains().map((product) => (
+                <div
+                  key={product._id}
+                  className="w-[250px] h-[330px] border-slate-300 border-2 shadow-lg border-opacity-75 rounded-[10px]"
+                >
+                  <img
+                    src={product.image || "/placeholder-design.png"}
+                    alt={product.name}
+                    className="w-[250px] h-[175px] object-cover rounded-t-[10px]"
+                  />
+                  <p className="text-[#404041] font-semibold text-base mt-2 ml-3">
+                    {product.name}
+                  </p>
+                  <p className="text-[#404041] mt-2 ml-3">{formatPrice(product.price)}</p>
+                  <Link
+                    href={`/customer/layanan/design-taman/${product._id}`}
+                    className="block w-[90%] mx-auto bg-[#50806B] text-white py-2 rounded-xl text-center font-semibold text-lg mt-4"
+                  >
+                    Detail
+                  </Link>
+                </div>
               ))
             ) : (
-              <div className="w-full text-center py-10">
-                <p className="text-xl text-gray-600">
-                  Tidak ada desain yang cocok dengan luas yang Anda masukkan.
-                </p>
-                <p className="text-gray-500 mt-2">
-                  Coba masukkan luas yang berbeda atau hubungi kami untuk konsultasi desain khusus.
-                </p>
-                <Link 
-                  href="https://wa.me/6281234567890?text=Halo,%20saya%20ingin%20konsultasi%20desain%20taman%20khusus"
-                  target="_blank"
-                  className="inline-block mt-4 bg-[#50806B] text-white py-2 px-6 rounded-xl font-semibold"
-                >
-                  Konsultasi Desain Khusus
-                </Link>
-              </div>
+              <p className="text-gray-500 text-center w-full">
+                Tidak ada desain yang ditemukan
+              </p>
             )}
           </div>
 
@@ -225,8 +239,8 @@ const DesainTaman = () => {
             <p className="text-gray-700 mb-4">
               Kami menyediakan layanan konsultasi dan desain taman sesuai dengan kebutuhan dan lahan Anda.
             </p>
-            <Link 
-              href="https://wa.me/6281234567890?text=Halo,%20saya%20ingin%20konsultasi%20desain%20taman%20khusus"
+            <Link
+              href="https://wa.me/6287801482963?text=Halo,%20saya%20ingin%20konsultasi%20desain%20khusus"
               target="_blank"
               className="inline-block bg-[#50806B] text-white py-2 px-6 rounded-xl font-semibold"
             >

@@ -1,16 +1,19 @@
-// app/api/desains/[id]/route.js
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import DesainTaman from '@/models/Desain';
+import DesainTaman from '@/models/DesainTaman';
+import { ObjectId } from 'mongodb';
 
 export async function GET(request, { params }) {
-  const { id } = await params;
+  const { id } = params; // Tidak perlu await
   console.log("GET /api/desains/[id] - Request diterima, ID:", id);
+
+  if (!id || !ObjectId.isValid(id)) {
+    console.log("ID tidak valid:", id);
+    return NextResponse.json({ error: 'ID desain tidak valid' }, { status: 400 });
+  }
+
   try {
-    console.log("Menghubungkan ke database...");
     await dbConnect();
-    console.log("Koneksi database berhasil, mencari desain dengan ID:", id);
-    
     const desain = await DesainTaman.findById(id);
     console.log("Hasil pencarian desain:", desain ? "Ditemukan" : "Tidak ditemukan");
     
@@ -18,7 +21,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Desain tidak ditemukan' }, { status: 404 });
     }
     
-    return NextResponse.json(desain);
+    return NextResponse.json(desain, { status: 200 });
   } catch (error) {
     console.error("Error saat mengambil desain:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -26,15 +29,23 @@ export async function GET(request, { params }) {
 }
 
 export async function PUT(request, { params }) {
+  const { id } = params;
+  console.log("PUT /api/desains/[id] - Request diterima, ID:", id);
+
+  // Validasi ID
+  if (!id || !ObjectId.isValid(id)) {
+    console.log("ID tidak valid:", id);
+    return NextResponse.json({ error: 'ID desain tidak valid' }, { status: 400 });
+  }
+
   try {
-    const { id } = await params;
     const data = await request.json();
     console.log("PUT /api/desains/[id] - Data yang diterima:", data);
     
     await dbConnect();
     
-    // Validate status
-    if (data.status && data.status !== 'Available' && data.status !== 'Not Available') {
+    // Validasi status
+    if (data.status && !['Available', 'Not Available'].includes(data.status)) {
       data.status = 'Available';
     }
     
@@ -60,8 +71,16 @@ export async function PUT(request, { params }) {
 }
 
 export async function DELETE(request, { params }) {
+  const { id } = params;
+  console.log("DELETE /api/desains/[id] - Request diterima, ID:", id);
+
+  // Validasi ID
+  if (!id || !ObjectId.isValid(id)) {
+    console.log("ID tidak valid:", id);
+    return NextResponse.json({ error: 'ID desain tidak valid' }, { status: 400 });
+  }
+
   try {
-    const { id } = await params;
     await dbConnect();
     
     const desain = await DesainTaman.findByIdAndDelete(id);
@@ -70,9 +89,10 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Desain tidak ditemukan' }, { status: 404 });
     }
     
+    console.log("Desain berhasil dihapus:", id);
     return NextResponse.json({ message: 'Desain berhasil dihapus' }, { status: 200 });
   } catch (error) {
     console.error("Error saat hapus desain:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-}
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
