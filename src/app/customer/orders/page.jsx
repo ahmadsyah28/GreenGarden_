@@ -283,9 +283,9 @@ const OrdersPage = () => {
     <div className="container mx-auto px-4 py-8 bg-white">
       {/* Header */}
       <div className="flex items-center mb-8">
-        <Link href="/account" className="flex items-center text-[#50806B] hover:underline mr-4">
+        <Link href="/" className="flex items-center text-[#50806B] hover:underline mr-4">
           <FaArrowLeft className="mr-2" />
-          Kembali ke Akun
+          Kembali ke Beranda
         </Link>
         <h1 className="text-2xl md:text-3xl font-bold text-[#404041]">Pesanan Saya</h1>
       </div>

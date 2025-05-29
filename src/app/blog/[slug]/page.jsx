@@ -323,10 +323,12 @@ const ShareButtons = ({ title, slug }) => {
   );
 };
 
-const BlogDetail = ({ params }) => {
+const BlogDetail = ({ params: paramsPromise }) => {
   const [post, setPost] = useState(null);
   const [relatedPosts, setRelatedPosts] = useState([]);
   
+  const params = React.use(paramsPromise); // Unwrap the params Promise
+
   useEffect(() => {
     // Find the blog post by slug
     const currentPost = blogPosts.find(post => post.slug === params.slug);
@@ -358,183 +360,6 @@ const BlogDetail = ({ params }) => {
       </div>
     );
   }
-
-  return (
-    <div className="container mx-auto px-4 md:px-[77px] py-8 bg-white">
-      {/* Back button */}
-      <div className="mb-6">
-        <Link href="/blog" className="text-[#50806B] hover:underline flex items-center">
-          ← Kembali ke Blog
-        </Link>
-      </div>
-
-      {/* Blog header */}
-      <div className="mb-8">
-        <div className="inline-block py-1 px-5 border border-slate-500 rounded-[20px] bg-[#50806B] mb-5">
-          <p className="font-bold text-white">{post.type}</p>
-        </div>
-        <h1 className="text-3xl md:text-4xl text-[#404041] font-bold mb-6 leading-tight">
-          {post.title}
-        </h1>
-        
-        {/* Author and publication info */}
-        <div className="flex items-center justify-between flex-wrap">
-          <div className="flex items-center mb-4 md:mb-0">
-            <div className="relative w-12 md:w-14 h-12 md:h-14">
-              <Image
-                src={post.author.avatar}
-                alt={post.author.name}
-                fill
-                className="object-cover rounded-full"
-              />
-            </div>
-            <div className="ml-3">
-              <p className="text-[#50806B] font-semibold">{post.author.name}</p>
-              <div className="flex text-gray-500 text-sm space-x-4">
-                <span className="flex items-center">
-                  <FaCalendarAlt className="mr-1" /> {post.date}
-                </span>
-                <span className="flex items-center">
-                  <FaClock className="mr-1" /> {post.readTime}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Share buttons */}
-          <ShareButtons title={post.title} slug={post.slug} />
-        </div>
-      </div>
-
-      {/* Featured image */}
-      <div className="relative w-full aspect-[16/9] md:h-[500px] mb-10">
-        <Image
-          src={post.image}
-          alt={post.title}
-          fill
-          className="object-cover rounded-xl"
-          priority
-        />
-      </div>
-
-      {/* Blog content */}
-      <div className="flex flex-col md:flex-row gap-10">
-        <div className="w-full md:w-2/3">
-          {/* Main article */}
-          <article className="prose prose-lg max-w-none">
-            <div dangerouslySetInnerHTML={{ __html: post.content }} />
-          </article>
-
-          {/* Tags */}
-          <div className="mt-10 mb-6">
-            <p className="text-[#404041] font-semibold mb-2">Tags:</p>
-            <div className="flex flex-wrap gap-2">
-              {post.tags.map((tag, index) => (
-                <span 
-                  key={index} 
-                  className="bg-gray-100 text-[#404041] px-3 py-1 rounded-full text-sm hover:bg-gray-200 transition cursor-pointer"
-                >
-                  #{tag}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Author bio */}
-          <div className="mt-10 bg-gray-50 p-6 rounded-xl">
-            <div className="flex items-start">
-              <div className="relative w-16 h-16 flex-shrink-0">
-                <Image
-                  src={post.author.avatar}
-                  alt={post.author.name}
-                  fill
-                  className="object-cover rounded-full"
-                />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-xl font-semibold text-[#404041]">Tentang {post.author.name}</h3>
-                <p className="text-gray-600 mt-2">{post.author.bio}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Sidebar */}
-        <aside className="w-full md:w-1/3">
-          {/* Related posts */}
-          {relatedPosts.length > 0 && (
-            <div className="bg-gray-50 p-6 rounded-xl mb-8">
-              <h3 className="text-xl font-semibold text-[#404041] mb-6">Artikel Terkait</h3>
-              <div className="space-y-6">
-                {relatedPosts.map(post => (
-                  <RelatedPostCard key={post.id} post={post} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Call to action */}
-          <div className="bg-[#50806B] bg-opacity-10 p-6 rounded-xl">
-            <h3 className="text-xl font-semibold text-[#404041] mb-4">Butuh Bantuan?</h3>
-            <p className="text-gray-700 mb-6">
-              Konsultasikan kebutuhan taman dan tanaman Anda dengan ahli kami untuk solusi terbaik.
-            </p>
-            <Link 
-              href="/layanan"
-              className="block w-full py-3 bg-[#50806B] text-white text-center font-medium rounded-lg hover:bg-opacity-90 transition"
-            >
-              Lihat Layanan Kami
-            </Link>
-          </div>
-        </aside>
-      </div>
-
-      {/* More articles section */}
-      <div className="mt-16">
-        <h2 className="text-2xl md:text-3xl font-semibold text-[#404041] text-center mb-10">
-          <span className="border-b-2 border-[#50806B] pb-2">Baca Artikel Lainnya</span>
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {blogPosts
-            .filter(p => p.id !== post.id)
-            .slice(0, 3)
-            .map(post => (
-              <div key={post.id} className="flex flex-col rounded-[20px] border border-slate-300 shadow-lg overflow-hidden h-full">
-                <div className="relative w-full h-48">
-                  <Image
-                    src={post.image}
-                    alt={post.title}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="p-4 flex flex-col flex-grow">
-                  <div className="py-1 px-2 border border-slate-500 rounded-xl bg-[#50806B] w-fit">
-                    <p className="font-thin text-white text-sm">{post.type}</p>
-                  </div>
-                  
-                  <h3 className="font-semibold text-xl text-[#404041] mb-1 line-clamp-2 mt-2">
-                    {post.title}
-                  </h3>
-                  
-                  <p className="text-sm text-[#404041] font-thin mb-4 flex-grow line-clamp-3">
-                    {post.excerpt}
-                  </p>
-                  
-                  <Link 
-                    href={`/blog/${post.slug}`} 
-                    className="text-[#50806B] font-medium hover:underline"
-                  >
-                    Baca selengkapnya →
-                  </Link>
-                </div>
-              </div>
-            ))}
-        </div>
-      </div>
-    </div>
-  );
 };
 
 export default BlogDetail;

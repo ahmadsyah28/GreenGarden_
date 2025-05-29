@@ -1,13 +1,17 @@
+// components/DetailDesainTaman.js
 "use client";
+
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { IoArrowBack } from "react-icons/io5";
 import { FaRuler, FaTree, FaLeaf, FaClipboardList } from "react-icons/fa";
+import AuthContext from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
 
 const DetailDesainTaman = ({ params: paramsPromise }) => {
-  const params = React.use(paramsPromise); // Unwrap Promise menggunakan React.use
-  const { id } = params || {}; // Ambil id dari params
+  const params = React.use(paramsPromise);
+  const { id } = params || {};
   const [desain, setDesain] = useState(null);
   const [recommendedDesains, setRecommendedDesains] = useState([]);
   const [luasTanah, setLuasTanah] = useState("");
@@ -28,6 +32,8 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isAuthenticated, user } = React.useContext(AuthContext);
+  const router = useRouter();
 
   useEffect(() => {
     if (!id || id === "undefined") {
@@ -39,14 +45,12 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        console.log("Mengambil data untuk ID:", id); // Debugging
         const desainResponse = await fetch(`/api/desains/${id}`);
         if (!desainResponse.ok) {
           const errorData = await desainResponse.json();
           throw new Error(errorData.message || "Gagal mengambil detail desain");
         }
         const desainData = await desainResponse.json();
-        console.log("Data desain:", desainData); // Debugging
         setDesain(desainData);
 
         const desainsResponse = await fetch("/api/desains");
@@ -54,7 +58,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
           throw new Error("Gagal mengambil rekomendasi desain");
         }
         const desainsData = await desainsResponse.json();
-        console.log("Data rekomendasi:", desainsData); // Debugging
         setRecommendedDesains(
           desainsData.filter((desain) => desain._id !== id).slice(0, 4)
         );
@@ -68,7 +71,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
     fetchData();
   }, [id]);
 
-  // Handler perubahan luas tanah
   const handleLuasChange = (e) => {
     const value = e.target.value;
     setLuasTanah(value);
@@ -87,7 +89,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
     }
   };
 
-  // Handler untuk layanan tambahan
   const toggleService = (serviceName) => {
     setSelectedServices((prev) =>
       prev.includes(serviceName)
@@ -96,7 +97,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
     );
   };
 
-  // Hitung total harga
   const calculateTotalPrice = () => {
     if (!desain) return 0;
 
@@ -109,7 +109,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
     return total;
   };
 
-  // Format harga
   const formatPrice = (price) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -117,13 +116,56 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
       minimumFractionDigits: 0,
     }).format(price);
 
-  // Handler form konsultasi
+  const addToCart = async () => {
+    if (!isAuthenticated || !user) {
+      alert("Silakan login untuk menambahkan item ke keranjang.");
+      router.push("/login");
+      return;
+    }
+
+    if (luasError) {
+      alert("Masukkan luas tanah yang valid.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/cart", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "design",
+          itemId: id,
+          quantity: 1,
+          userId: user._id,
+          additionalServices: desain.additionalServices
+            .filter((service) => selectedServices.includes(service.name))
+            .map((service) => ({
+              name: service.name,
+              price: service.price,
+            })),
+        }),
+      });
+
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error || "Gagal menambahkan ke keranjang");
+      }
+
+      alert("Desain berhasil ditambahkan ke keranjang!");
+      router.push("/customer/keranjang");
+    } catch (err) {
+      console.error("Error menambahkan ke keranjang:", err);
+      alert(`Gagal menambahkan ke keranjang: ${err.message}`);
+    }
+  };
+
   const handleFormChange = (e) => {
     const { name, value } = e.target;
     setFormDesain((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handler untuk input file
   const handleFileChange = (e) => {
     const { name, files } = e.target;
     if (files && files[0]) {
@@ -133,7 +175,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
     }
   };
 
-  // Fungsi untuk menghapus gambar
   const handleRemoveImage = (name) => {
     setFormDesain((prev) => ({ ...prev, [name]: null }));
     if (previews[name]) {
@@ -180,7 +221,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
 
   return (
     <div className="container mx-auto px-4 py-8 bg-white">
-      {/* Tombol Kembali */}
       <div className="mb-6 ml-[77px]">
         <Link
           href="/customer/layanan/design-taman"
@@ -191,9 +231,7 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
         </Link>
       </div>
 
-      {/* Detail Content */}
       <div className="flex flex-wrap mx-[77px] gap-10">
-        {/* Gambar Desain */}
         <div className="w-full md:w-2/5">
           <div className="border-2 border-slate-300 rounded-xl shadow-md overflow-hidden">
             <div className="relative w-full h-[400px]">
@@ -208,7 +246,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
             </div>
           </div>
 
-          {/* Informasi tambahan */}
           <div className="mt-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
             <h3 className="text-xl font-semibold text-[#404041] mb-4">Informasi Desain</h3>
             <div className="flex items-center mb-3 text-[#50806B]">
@@ -241,9 +278,20 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
               </span>
             </div>
           </div>
+
+          <div className="mt-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
+            <h3 className="text-xl font-semibold text-[#404041] mb-4">Luas Tanah</h3>
+            <input
+              type="number"
+              value={luasTanah}
+              onChange={handleLuasChange}
+              placeholder="Masukkan luas tanah (m²)"
+              className="w-full p-2 border rounded-lg"
+            />
+            {luasError && <p className="text-red-600 mt-2">{luasError}</p>}
+          </div>
         </div>
 
-        {/* Informasi Desain */}
         <div className="w-full md:w-1/2">
           <h1 className="text-3xl font-bold text-[#404041] mb-3">{desain.name}</h1>
           <p className="text-2xl text-[#50806B] font-semibold mb-6">{formatPrice(desain.price)}</p>
@@ -290,8 +338,7 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
           <div className="flex gap-4">
             <button
               className="bg-[#50806B] text-white py-3 px-6 rounded-xl text-lg font-semibold w-full md:w-auto"
-              onClick={() => setShowConsultationForm(true)}
-              disabled={luasError !== ""}
+              onClick={addToCart}
             >
               Tambah ke Keranjang
             </button>
@@ -308,7 +355,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
         </div>
       </div>
 
-      {/* Rekomendasi Desain Lain */}
       <div className="mt-16 mx-[77px]">
         <h2 className="text-2xl font-bold text-[#404041] mb-6">Desain Lainnya</h2>
         <div className="flex flex-wrap gap-6">

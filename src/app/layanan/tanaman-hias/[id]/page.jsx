@@ -173,7 +173,7 @@ export default function DetailTanaman({ params }) {
           {/* Tombol Aksi */}
           <div className="flex gap-4">
             <Link
-              href="/register"
+              href="/login"
               className={`bg-[#50806B] text-white py-3 px-6 rounded-xl text-lg font-semibold w-full md:w-auto ${
                 tanaman.stock === 0 ? "bg-gray-400 pointer-events-none" : ""
               }`}

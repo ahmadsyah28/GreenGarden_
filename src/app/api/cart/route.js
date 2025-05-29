@@ -1,29 +1,89 @@
-// src/app/api/cart/route.js
-import { NextResponse } from 'next/server';
-import mongoose from 'mongoose';
-import connectMongo from '@/lib/mongodb';
-import Cart from '@/models/Cart';
-import Plant from '@/models/Plant';
+import { NextResponse } from "next/server";
+import mongoose from "mongoose";
+import connectMongo from "@/lib/mongodb";
+import Cart from "@/models/Cart";
+import Plant from "@/models/Plant";
+import DesainTaman from "@/models/DesainTaman";
+import GardenCare from "@/models/GardenCare";
+
+const isDev = process.env.NODE_ENV === "development";
 
 export async function POST(request) {
   await connectMongo();
-  const { plantId, quantity, userId } = await request.json();
+  const { type, itemId, optionId, quantity, userId, additionalServices, size } = await request.json();
 
-  if (!userId) {
-    return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+  if (!userId || !type || !itemId || (type === "maintenance" && !optionId)) {
+    return NextResponse.json(
+      { error: "User ID, type, itemId, dan optionId (untuk perawatan) wajib diisi" },
+      { status: 400 }
+    );
   }
 
   try {
-    if (!mongoose.Types.ObjectId.isValid(plantId) || !quantity || quantity < 1) {
-      return NextResponse.json({ error: 'Invalid plantId or quantity' }, { status: 400 });
+    if (!mongoose.Types.ObjectId.isValid(itemId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return NextResponse.json({ error: "Format itemId atau userId tidak valid" }, { status: 400 });
+    }
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return NextResponse.json({ error: "Jumlah harus bilangan bulat positif" }, { status: 400 });
+    }
+    if (type === "maintenance" && !Number.isInteger(optionId)) {
+      return NextResponse.json({ error: "optionId harus berupa angka" }, { status: 400 });
     }
 
-    const plant = await Plant.findById(plantId);
-    if (!plant) {
-      return NextResponse.json({ error: 'Plant not found' }, { status: 404 });
+    let Model, item, gardenCareDoc;
+    if (type === "plant") {
+      Model = Plant;
+      item = await Model.findById(itemId);
+    } else if (type === "design") {
+      Model = DesainTaman;
+      item = await Model.findById(itemId);
+    } else if (type === "maintenance") {
+      Model = GardenCare;
+      gardenCareDoc = await Model.findById(itemId);
+      if (gardenCareDoc) {
+        item = gardenCareDoc.options.find((opt) => opt.id === optionId);
+      }
+    } else {
+      return NextResponse.json(
+        { error: "Tipe item tidak valid. Harus plant, design, atau maintenance" },
+        { status: 400 }
+      );
     }
-    if (plant.stock < quantity) {
-      return NextResponse.json({ error: `Insufficient stock: ${plant.stock} available` }, { status: 400 });
+
+    if (!item) {
+      return NextResponse.json({ error: `${type} tidak ditemukan` }, { status: 404 });
+    }
+
+    if (type === "plant" && item.stock < quantity) {
+      return NextResponse.json({ error: `Stok tidak cukup: ${item.stock} tersedia` }, { status: 400 });
+    }
+
+    if (type === "plant" && item.status === "Out of Stock") {
+      return NextResponse.json({ error: "Tanaman kehabisan stok" }, { status: 400 });
+    }
+    if (type === "design" && item.status === "Not Available") {
+      return NextResponse.json({ error: "Desain tidak tersedia" }, { status: 400 });
+    }
+    if (type === "maintenance" && gardenCareDoc.status === "Inactive") {
+      return NextResponse.json({ error: "Layanan perawatan tidak aktif" }, { status: 400 });
+    }
+
+    if (type === "design" && additionalServices) {
+      if (!Array.isArray(additionalServices)) {
+        return NextResponse.json({ error: "additionalServices harus berupa array" }, { status: 400 });
+      }
+      const validServices = item.additionalServices.map((s) => s.name);
+      const invalidServices = additionalServices.filter((s) => !validServices.includes(s.name));
+      if (invalidServices.length > 0) {
+        return NextResponse.json({ error: "Layanan tambahan tidak valid" }, { status: 400 });
+      }
+    }
+
+    if (type === "maintenance" && !size) {
+      return NextResponse.json(
+        { error: "Ukuran wajib diisi untuk layanan perawatan" },
+        { status: 400 }
+      );
     }
 
     let cart = await Cart.findOne({ userId });
@@ -31,141 +91,333 @@ export async function POST(request) {
       cart = new Cart({ userId, items: [] });
     }
 
-    const itemIndex = cart.items.findIndex((item) => item.plantId.toString() === plantId);
+    const itemIndex = cart.items.findIndex(
+      (cartItem) =>
+        cartItem.type === type &&
+        cartItem.itemId.toString() === itemId &&
+        (type !== "maintenance" || cartItem.optionId === optionId)
+    );
+
+    const itemData = {
+      type,
+      itemId,
+      quantity,
+      harga: item.price,
+      nama: item.name || item.title,
+      image: item.image || "/placeholder-item.png",
+    };
+
+    if (type === "plant") {
+      itemData.stock = item.stock;
+    } else if (type === "maintenance") {
+      itemData.optionId = optionId;
+      itemData.size = size;
+      itemData.nama = `${gardenCareDoc.title} - ${item.name}`;
+    } else if (type === "design" && additionalServices) {
+      itemData.additionalServices = additionalServices;
+      itemData.harga += additionalServices.reduce((sum, s) => sum + (s.price || 0), 0);
+    }
+
     if (itemIndex > -1) {
       cart.items[itemIndex].quantity += quantity;
-      cart.items[itemIndex].harga = plant.price;
-      cart.items[itemIndex].nama = plant.name;
-      cart.items[itemIndex].image = plant.image || '/placeholder-plant.png';
-      cart.items[itemIndex].stock = plant.stock;
+      cart.items[itemIndex].harga = itemData.harga;
+      cart.items[itemIndex].nama = itemData.nama;
+      cart.items[itemIndex].image = itemData.image;
+      if (type === "plant") {
+        cart.items[itemIndex].stock = itemData.stock;
+      } else if (type === "maintenance") {
+        cart.items[itemIndex].optionId = itemData.optionId;
+        cart.items[itemIndex].size = itemData.size;
+      } else if (type === "design") {
+        cart.items[itemIndex].additionalServices = itemData.additionalServices;
+      }
     } else {
-      cart.items.push({
-        plantId,
-        quantity,
-        harga: plant.price,
-        nama: plant.name,
-        image: plant.image || '/placeholder-plant.png',
-        stock: plant.stock,
-      });
+      cart.items.push(itemData);
+    }
+
+    if (type === "plant" && itemIndex > -1 && cart.items[itemIndex].stock < cart.items[itemIndex].quantity) {
+      return NextResponse.json(
+        { error: `Stok tidak cukup: ${item.stock} tersedia` },
+        { status: 400 }
+      );
     }
 
     await cart.save();
-    console.log(`Item added to cart for user ${userId}:`, { plantId, quantity });
-    return NextResponse.json({ message: 'Item added to cart' }, { status: 200 });
+    console.log(`Item ditambahkan ke keranjang untuk user ${userId}:`, {
+      type,
+      itemId,
+      optionId,
+      quantity,
+    });
+    return NextResponse.json(
+      { message: "Item ditambahkan ke keranjang", cart },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('Error adding to cart:', error);
-    return NextResponse.json({ error: 'Failed to add to cart: ' + error.message }, { status: 500 });
+    console.error("Error menambahkan ke keranjang:", error);
+    return NextResponse.json(
+      { error: `Gagal menambahkan ke keranjang: ${error.message}` },
+      { status: 500 }
+    );
   }
 }
 
 export async function GET(request) {
   await connectMongo();
   const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('userId');
+  const userId = searchParams.get("userId");
 
   if (!userId) {
-    return NextResponse.json({ error: 'User ID required' }, { status: 400 });
+    return NextResponse.json({ error: "User ID is required" }, { status: 400 });
   }
 
   try {
     if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return NextResponse.json({ error: 'Invalid userId' }, { status: 400 });
+      return NextResponse.json({ error: "Invalid userId format" }, { status: 400 });
     }
 
     const cart = await Cart.findOne({ userId });
-    const items = cart ? cart.items.map(item => ({
-      id: item.plantId.toString(),
-      plantId: item.plantId.toString(),
-      nama: item.nama,
-      harga: item.harga,
-      quantity: item.quantity,
-      image: item.image,
-      stock: item.stock,
-    })) : [];
+    if (!cart) {
+      if (isDev) console.log(`No cart found for userId: ${userId}`);
+      return NextResponse.json([], { status: 200 });
+    }
 
-    console.log(`Fetched cart for user ${userId}:`, items);
+    const items = cart.items
+      .filter((item) => item.itemId && mongoose.Types.ObjectId.isValid(item.itemId))
+      .map((item) => ({
+        id: item.itemId.toString(),
+        type: item.type,
+        itemId: item.itemId.toString(),
+        optionId: item.optionId,
+        nama: item.nama,
+        harga: item.harga,
+        quantity: item.quantity,
+        image: item.image,
+        stock: item.stock,
+        size: item.size,
+        additionalServices: item.additionalServices,
+      }));
+
+    if (isDev) console.log(`Cart retrieved for user ${userId}:`, items);
     return NextResponse.json(items, { status: 200 });
   } catch (error) {
-    console.error('Error fetching cart:', error);
-    return NextResponse.json({ error: 'Failed to fetch cart: ' + error.message }, { status: 500 });
+    if (isDev) console.error("Error retrieving cart:", error);
+    return NextResponse.json(
+      { error: `Failed to retrieve cart: ${error.message}` },
+      { status: 500 }
+    );
   }
 }
 
 export async function PATCH(request) {
   await connectMongo();
-  const { plantId, quantity, userId } = await request.json();
+  const { type, itemId, optionId, quantity, userId, additionalServices, size } = await request.json();
 
-  if (!userId || !plantId || !quantity) {
-    return NextResponse.json({ error: 'User ID, plantId, and quantity required' }, { status: 400 });
+  if (!userId || !type || !itemId || !quantity || (type === "maintenance" && !optionId)) {
+    return NextResponse.json(
+      { error: "User ID, type, itemId, quantity, dan optionId (untuk perawatan) wajib diisi" },
+      { status: 400 }
+    );
+  }
+  if (type === "maintenance" && !size) {
+    return NextResponse.json(
+      { error: "Ukuran wajib diisi untuk layanan perawatan" },
+      { status: 400 }
+    );
   }
 
   try {
-    if (!mongoose.Types.ObjectId.isValid(plantId) || !mongoose.Types.ObjectId.isValid(userId) || quantity < 1) {
-      return NextResponse.json({ error: 'Invalid plantId, userId, or quantity' }, { status: 400 });
+    if (!mongoose.Types.ObjectId.isValid(itemId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return NextResponse.json({ error: "Format itemId atau userId tidak valid" }, { status: 400 });
+    }
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return NextResponse.json({ error: "Jumlah harus bilangan bulat positif" }, { status: 400 });
+    }
+    if (type === "maintenance" && !Number.isInteger(optionId)) {
+      return NextResponse.json({ error: "optionId harus berupa angka" }, { status: 400 });
     }
 
-    const plant = await Plant.findById(plantId);
-    if (!plant) {
-      return NextResponse.json({ error: 'Plant not found' }, { status: 404 });
+    let Model, item, gardenCareDoc;
+    if (type === "plant") {
+      Model = Plant;
+      item = await Model.findById(itemId);
+    } else if (type === "design") {
+      Model = DesainTaman;
+      item = await Model.findById(itemId);
+    } else if (type === "maintenance") {
+      Model = GardenCare;
+      gardenCareDoc = await Model.findById(itemId);
+      if (gardenCareDoc) {
+        item = gardenCareDoc.options.find((opt) => opt.id === optionId);
+      }
+    } else {
+      return NextResponse.json({ error: "Tipe item tidak valid" }, { status: 400 });
     }
-    if (plant.stock < quantity) {
-      return NextResponse.json({ error: `Insufficient stock: ${plant.stock} available` }, { status: 400 });
+
+    if (!item) {
+      return NextResponse.json({ error: `${type} tidak ditemukan` }, { status: 404 });
+    }
+
+    if (type === "plant" && item.stock < quantity) {
+      return NextResponse.json({ error: `Stok tidak cukup: ${item.stock} tersedia` }, { status: 400 });
+    }
+
+    if (type === "plant" && item.status === "Out of Stock") {
+      return NextResponse.json({ error: "Tanaman kehabisan stok" }, { status: 400 });
+    }
+    if (type === "design" && item.status === "Not Available") {
+      return NextResponse.json({ error: "Desain tidak tersedia" }, { status: 400 });
+    }
+    if (type === "maintenance" && gardenCareDoc.status === "Inactive") {
+      return NextResponse.json({ error: "Layanan perawatan tidak aktif" }, { status: 400 });
+    }
+
+    if (type === "design" && additionalServices) {
+      if (!Array.isArray(additionalServices)) {
+        return NextResponse.json(
+          { error: "additionalServices harus berupa array" },
+          { status: 400 }
+        );
+      }
+      const validServices = item.additionalServices.map((s) => s.name);
+      const invalidServices = additionalServices.filter((s) => !validServices.includes(s.name));
+      if (invalidServices.length > 0) {
+        return NextResponse.json({ error: "Layanan tambahan tidak valid" }, { status: 400 });
+      }
     }
 
     const cart = await Cart.findOne({ userId });
     if (!cart) {
-      return NextResponse.json({ error: 'Cart not found' }, { status: 404 });
+      return NextResponse.json({ error: "Keranjang tidak ditemukan" }, { status: 404 });
     }
 
-    const itemIndex = cart.items.findIndex((item) => item.plantId.toString() === plantId);
+    const itemIndex = cart.items.findIndex(
+      (cartItem) =>
+        cartItem.type === type &&
+        cartItem.itemId.toString() === itemId &&
+        (type !== "maintenance" || cartItem.optionId === optionId)
+    );
     if (itemIndex === -1) {
-      return NextResponse.json({ error: 'Item not found in cart' }, { status: 404 });
+      return NextResponse.json({ error: "Item tidak ditemukan di keranjang" }, { status: 404 });
     }
 
     cart.items[itemIndex].quantity = quantity;
-    cart.items[itemIndex].harga = plant.price;
-    cart.items[itemIndex].nama = plant.name;
-    cart.items[itemIndex].image = plant.image || '/placeholder-plant.png';
-    cart.items[itemIndex].stock = plant.stock;
+    cart.items[itemIndex].harga = item.price;
+    cart.items[itemIndex].nama =
+      type === "maintenance" ? `${gardenCareDoc.title} - ${item.name}` : item.name || item.title;
+    cart.items[itemIndex].image = item.image || "/placeholder-item.png";
+
+    if (type === "plant") {
+      cart.items[itemIndex].stock = item.stock;
+    } else if (type === "maintenance") {
+      cart.items[itemIndex].optionId = optionId;
+      cart.items[itemIndex].size = size;
+    } else if (type === "design" && additionalServices) {
+      cart.items[itemIndex].additionalServices = additionalServices;
+      cart.items[itemIndex].harga += additionalServices.reduce(
+        (sum, s) => sum + (s.price || 0),
+        0
+      );
+    }
 
     await cart.save();
-    console.log(`Item quantity updated for user ${userId}:`, { plantId, quantity });
-    return NextResponse.json({ message: 'Item quantity updated' }, { status: 200 });
+    if (isDev)
+      console.log(`Jumlah item diperbarui untuk user ${userId}:`, {
+        type,
+        itemId,
+        optionId,
+        quantity,
+      });
+    return NextResponse.json(
+      { message: "Jumlah item diperbarui", cart },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('Error updating cart:', error);
-    return NextResponse.json({ error: 'Failed to update cart: ' + error.message }, { status: 500 });
+    if (isDev) console.error("Error memperbarui keranjang:", error);
+    return NextResponse.json(
+      { error: `Gagal memperbarui keranjang: ${error.message}` },
+      { status: 500 }
+    );
   }
 }
 
 export async function DELETE(request) {
   await connectMongo();
-  const { plantId, userId } = await request.json();
+  const { type, itemId, optionId, userId, clearAll } = await request.json();
 
-  if (!userId || !plantId) {
-    return NextResponse.json({ error: 'User ID and plantId required' }, { status: 400 });
+  if (clearAll) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return NextResponse.json({ error: "Invalid userId format" }, { status: 400 });
+      }
+
+      const cart = await Cart.findOne({ userId });
+      if (!cart) {
+        return NextResponse.json({ error: "Keranjang tidak ditemukan" }, { status: 404 });
+      }
+
+      cart.items = [];
+      await cart.save();
+      console.log(`Keranjang dikosongkan untuk user ${userId}`);
+      return NextResponse.json(
+        { message: "Keranjang dikosongkan", cart },
+        { status: 200 }
+      );
+    } catch (error) {
+      console.error("Error mengosongkan keranjang:", error);
+      return NextResponse.json(
+        { error: `Gagal mengosongkan keranjang: ${error.message}` },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (!userId || !type || !itemId || (type === "maintenance" && !optionId)) {
+    return NextResponse.json(
+      { error: "User ID, type, itemId, dan optionId (untuk perawatan) wajib diisi" },
+      { status: 400 }
+    );
   }
 
   try {
-    if (!mongoose.Types.ObjectId.isValid(plantId) || !mongoose.Types.ObjectId.isValid(userId)) {
-      return NextResponse.json({ error: 'Invalid plantId or userId' }, { status: 400 });
+    if (!mongoose.Types.ObjectId.isValid(itemId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return NextResponse.json({ error: "Format itemId atau userId tidak valid" }, { status: 400 });
+    }
+    if (type === "maintenance" && !Number.isInteger(optionId)) {
+      return NextResponse.json({ error: "optionId harus berupa angka" }, { status: 400 });
     }
 
     const cart = await Cart.findOne({ userId });
     if (!cart) {
-      return NextResponse.json({ error: 'Cart not found' }, { status: 404 });
+      return NextResponse.json({ error: "Keranjang tidak ditemukan" }, { status: 404 });
     }
 
-    const itemIndex = cart.items.findIndex((item) => item.plantId.toString() === plantId);
+    const itemIndex = cart.items.findIndex(
+      (cartItem) =>
+        cartItem.type === type &&
+        cartItem.itemId.toString() === itemId &&
+        (type !== "maintenance" || cartItem.optionId === optionId)
+    );
     if (itemIndex === -1) {
-      return NextResponse.json({ error: 'Item not found in cart' }, { status: 404 });
+      return NextResponse.json({ error: "Item tidak ditemukan di keranjang" }, { status: 404 });
     }
 
     cart.items.splice(itemIndex, 1);
     await cart.save();
-    console.log(`Item removed from cart for user ${userId}:`, { plantId });
-    return NextResponse.json({ message: 'Item removed from cart' }, { status: 200 });
+    console.log(`Item dihapus dari keranjang untuk user ${userId}:`, {
+      type,
+      itemId,
+      optionId,
+    });
+    return NextResponse.json(
+      { message: "Item dihapus dari keranjang", cart },
+      { status: 200 }
+    );
   } catch (error) {
-    console.error('Error removing item from cart:', error);
-    return NextResponse.json({ error: 'Failed to remove item: ' + error.message }, { status: 500 });
+    console.error("Error menghapus item dari keranjang:", error);
+    return NextResponse.json(
+      { error: `Gagal menghapus item: ${error.message}` },
+      { status: 500 }
+    );
   }
 }

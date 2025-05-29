@@ -64,37 +64,40 @@ export default function DetailTanaman({ params }) {
     }
   };
 
-  const addToCart = async () => {
-    if (!isAuthenticated || !user) {
-      alert("Silakan login untuk menambahkan item ke keranjang.");
-      router.push("/login");
-      return;
+  // components/DetailTanaman.js
+const addToCart = async () => {
+  if (!isAuthenticated || !user) {
+    alert("Silakan login untuk menambahkan item ke keranjang.");
+    router.push("/login");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/cart", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: "plant",
+        itemId: id,
+        quantity: jumlah,
+        userId: user._id,
+      }),
+    });
+
+    const responseData = await response.json();
+    if (!response.ok) {
+      throw new Error(responseData.error || "Gagal menambahkan ke keranjang");
     }
 
-    console.log("Menambahkan ke keranjang:", { plantId: id, quantity: jumlah, userId: user._id });
-
-    try {
-      const response = await fetch("/api/cart", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ plantId: id, quantity: jumlah, userId: user._id }),
-      });
-
-      const responseData = await response.json();
-      if (!response.ok) {
-        throw new Error(responseData.error || "Gagal menambahkan ke keranjang");
-      }
-
-      console.log("Item berhasil ditambahkan:", responseData);
-      alert("Item berhasil ditambahkan ke keranjang!");
-      router.push("/customer/keranjang");
-    } catch (err) {
-      console.error("Error menambahkan ke keranjang:", err);
-      alert(`Gagal menambahkan ke keranjang: ${err.message}`);
-    }
-  };
+    alert("Item berhasil ditambahkan ke keranjang!");
+    router.push("/customer/keranjang");
+  } catch (err) {
+    console.error("Error menambahkan ke keranjang:", err);
+    alert(`Gagal menambahkan ke keranjang: ${err.message}`);
+  }
+};
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat("id-ID", {

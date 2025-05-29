@@ -7,20 +7,21 @@ import { FaTrash, FaPlus, FaMinus } from "react-icons/fa";
 import AuthContext from "@/context/AuthContext";
 
 const KeranjangPage = () => {
-  const [cartItems, setCartItems] = useState([]);
-  const [voucherCode, setVoucherCode] = useState("");
+ const [cartItems, setCartItems] = useState([]);
+  const [voucherCode, setVoucherCode] = useState('');
   const [voucherApplied, setVoucherApplied] = useState(false);
   const [voucherDiscount, setVoucherDiscount] = useState(0);
   const [invalidVoucher, setInvalidVoucher] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { isAuthenticated, user } = useContext(AuthContext);
+  const { user, isAuthenticated, loading: authLoading } = useContext(AuthContext);
 
   // Fetch cart items on mount
   useEffect(() => {
     const fetchCart = async () => {
-      if (!isAuthenticated || !user) {
-        setError("Silakan login untuk melihat keranjang.");
+      if (authLoading) return; // Tunggu autentikasi selesai
+      if (!isAuthenticated || !user?._id) {
+        setError('Silakan login untuk melihat keranjang.');
         setLoading(false);
         return;
       }
@@ -30,7 +31,7 @@ const KeranjangPage = () => {
         const response = await fetch(`/api/cart?userId=${user._id}`);
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to fetch cart");
+          throw new Error(errorData.error || 'Gagal mengambil keranjang');
         }
         const data = await response.json();
         setCartItems(data);
@@ -42,7 +43,7 @@ const KeranjangPage = () => {
     };
 
     fetchCart();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, authLoading]);
 
   // Menghitung subtotal
   const calculateSubtotal = () => {
@@ -59,74 +60,121 @@ const KeranjangPage = () => {
   };
 
   // Menambah jumlah item
-  const increaseQuantity = async (plantId) => {
-    const item = cartItems.find((item) => item.plantId === plantId);
-    if (!item || item.quantity >= item.stock) return;
+  const increaseQuantity = async (itemId, type, optionId = null) => {
+  const item = cartItems.find(
+    (item) =>
+      item.itemId === itemId &&
+      item.type === type &&
+      (type !== 'maintenance' || item.optionId === optionId)
+  );
+  if (!item) return;
 
-    try {
-      const response = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plantId, quantity: 1, userId: user._id }),
-      });
+  try {
+    const response = await fetch('/api/cart', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type,
+        itemId,
+        optionId: type === 'maintenance' ? optionId : undefined,
+        quantity: item.quantity + 1,
+        userId: user._id,
+        size: type === 'maintenance' ? item.size : undefined,
+        additionalServices: type === 'design' ? item.additionalServices : undefined,
+      }),
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update quantity");
-      }
-
-      setCartItems((prevItems) =>
-        prevItems.map((item) =>
-          item.plantId === plantId ? { ...item, quantity: item.quantity + 1 } : item
-        )
-      );
-    } catch (err) {
-      alert(`Error: ${err.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Gagal memperbarui jumlah');
     }
-  };
 
-  // Mengurangi jumlah item
-  const decreaseQuantity = async (plantId) => {
-    const item = cartItems.find((item) => item.plantId === plantId);
-    if (!item || item.quantity <= 1) return;
+    setCartItems((prevItems) =>
+      prevItems.map((prevItem) =>
+        prevItem.itemId === itemId &&
+        prevItem.type === type &&
+        (type !== 'maintenance' || prevItem.optionId === optionId)
+          ? { ...prevItem, quantity: prevItem.quantity + 1 }
+          : prevItem
+      )
+    );
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  }
+};
 
-    try {
-      const response = await fetch("/api/cart", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plantId, quantity: item.quantity - 1, userId: user._id }),
-      });
+const decreaseQuantity = async (itemId, type, optionId = null) => {
+  const item = cartItems.find(
+    (item) =>
+      item.itemId === itemId &&
+      item.type === type &&
+      (type !== 'maintenance' || item.optionId === optionId)
+  );
+  if (!item || item.quantity <= 1) return;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update quantity");
-      }
+  try {
+    const response = await fetch('/api/cart', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type,
+        itemId,
+        optionId: type === 'maintenance' ? optionId : undefined,
+        quantity: item.quantity - 1,
+        userId: user._id,
+        size: type === 'maintenance' ? item.size : undefined,
+        additionalServices: type === 'design' ? item.additionalServices : undefined,
+      }),
+    });
 
-      setCartItems((prevItems) =>
-        prevItems.map((item) =>
-          item.plantId === plantId ? { ...item, quantity: item.quantity - 1 } : item
-        )
-      );
-    } catch (err) {
-      alert(`Error: ${err.message}`);
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Gagal memperbarui jumlah');
     }
-  };
+
+    setCartItems((prevItems) =>
+      prevItems.map((prevItem) =>
+        prevItem.itemId === itemId &&
+        prevItem.type === type &&
+        (type !== 'maintenance' || prevItem.optionId === optionId)
+          ? { ...prevItem, quantity: prevItem.quantity - 1 }
+          : prevItem
+      )
+    );
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  }
+};
 
   // Menghapus item dari keranjang
-  const removeItem = async (plantId) => {
+  const removeItem = async (itemId, type, optionId = null) => {
     try {
       const response = await fetch("/api/cart", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plantId, userId: user._id }),
+        body: JSON.stringify({
+          type,
+          itemId,
+          optionId: type === "maintenance" ? optionId : undefined,
+          userId: user._id,
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to remove item");
+        throw new Error(errorData.error || "Gagal menghapus item");
       }
 
-      setCartItems((prevItems) => prevItems.filter((item) => item.plantId !== plantId));
+      setCartItems((prevItems) =>
+        prevItems.filter(
+          (item) =>
+            !(
+              item.itemId === itemId &&
+              item.type === type &&
+              (type !== "maintenance" || item.optionId === optionId)
+            )
+        )
+      );
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
@@ -176,10 +224,10 @@ const KeranjangPage = () => {
       <div className="container mx-auto px-4 py-8 bg-white text-center">
         <p className="text-red-500">{error}</p>
         <Link
-          href="/customer/layanan/tanaman-hias"
+          href="/customer/layanan"
           className="text-[#50806B] font-semibold mt-4 inline-block"
         >
-          Kembali ke Tanaman Hias
+          Kembali ke Layanan
         </Link>
       </div>
     );
@@ -218,21 +266,21 @@ const KeranjangPage = () => {
             Mulai belanja untuk menambahkan produk ke keranjang Anda.
           </p>
           <Link
-            href="/customer/layanan/tanaman-hias"
+            href="/customer/layanan"
             className="inline-block bg-[#50806B] text-white py-2 px-6 rounded-lg hover:bg-opacity-90 transition"
           >
-            Jelajahi Produk
+            Jelajahi Layanan
           </Link>
         </div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Daftar produk */}
+          {/* Daftar item */}
           <div className="w-full lg:w-2/3">
             <div className="bg-white rounded-lg shadow-md p-6 mb-4">
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-4">Produk</th>
+                    <th className="text-left py-4">Item</th>
                     <th className="text-center py-4">Jumlah</th>
                     <th className="text-right py-4">Subtotal</th>
                     <th className="text-right py-4 w-10"></th>
@@ -240,7 +288,7 @@ const KeranjangPage = () => {
                 </thead>
                 <tbody>
                   {cartItems.map((item) => (
-                    <tr key={item.plantId} className="border-b">
+                    <tr key={`${item.itemId}-${item.type}-${item.optionId || ""}`} className="border-b">
                       <td className="py-4">
                         <div className="flex items-center">
                           <div className="relative w-16 h-16 mr-4 rounded-md overflow-hidden border border-gray-200">
@@ -258,13 +306,20 @@ const KeranjangPage = () => {
                             <p className="text-[#50806B] font-medium">
                               {formatPrice(item.harga)}
                             </p>
+                            {item.type === "maintenance" && item.size && (
+                              <p className="text-gray-600 text-sm">
+                                Ukuran: {item.size}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </td>
                       <td className="py-4">
                         <div className="flex items-center justify-center">
                           <button
-                            onClick={() => decreaseQuantity(item.plantId)}
+                            onClick={() =>
+                              decreaseQuantity(item.itemId, item.type, item.optionId)
+                            }
                             className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100"
                             disabled={item.quantity <= 1}
                           >
@@ -274,9 +329,12 @@ const KeranjangPage = () => {
                             {item.quantity}
                           </span>
                           <button
-                            onClick={() => increaseQuantity(item.plantId)}
+                            onClick={() =>
+                              increaseQuantity(item.itemId, item.type, item.optionId)
+                            }
                             className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100"
-                            disabled={item.quantity >= item.stock}
+                            // Tidak ada batasan stok untuk maintenance
+                            disabled={item.type === "plant" && item.quantity >= item.stock}
                           >
                             <FaPlus size={10} />
                           </button>
@@ -287,7 +345,9 @@ const KeranjangPage = () => {
                       </td>
                       <td className="py-4 text-right">
                         <button
-                          onClick={() => removeItem(item.plantId)}
+                          onClick={() =>
+                            removeItem(item.itemId, item.type, item.optionId)
+                          }
                           className="text-red-500 hover:text-red-700"
                           aria-label="Hapus item"
                         >
@@ -316,10 +376,7 @@ const KeranjangPage = () => {
 
               {/* Kode Voucher */}
               <div className="mb-4">
-                <label
-                  htmlFor="voucher"
-                  className="block text-gray-600 mb-2"
-                >
+                <label htmlFor="voucher" className="block text-gray-600 mb-2">
                   Kode Voucher
                 </label>
                 <div className="flex">
@@ -374,7 +431,7 @@ const KeranjangPage = () => {
 
               {/* Atau Lanjut Belanja */}
               <Link
-                href="/customer/layanan/tanaman-hias"
+                href="/customer/layanan"
                 className="block w-full text-[#50806B] text-center py-3 rounded-lg font-medium mt-3 border border-[#50806B] hover:bg-gray-50 transition"
               >
                 Lanjutkan Belanja

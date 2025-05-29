@@ -1,3 +1,4 @@
+// models/Cart.js
 const mongoose = require('mongoose');
 
 const cartSchema = new mongoose.Schema({
@@ -5,19 +6,31 @@ const cartSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
-    index: true, // Tambahkan indeks untuk query berdasarkan userId
+    index: true,
   },
   items: [
     {
-      plantId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Plant',
+      type: {
+        type: String,
+        enum: ['plant', 'design', 'maintenance'],
         required: true,
       },
+      itemId: {
+        type: mongoose.Schema.Types.ObjectId,
+        refPath: 'items.type',
+        required: true,
+      },
+      optionId: {
+        type: Number,
+        required: function () {
+          return this.type === 'maintenance';
+        },
+      }, // ID opsi untuk perawatan taman
       quantity: {
         type: Number,
         required: true,
         min: 1,
+        default: 1,
       },
       harga: {
         type: Number,
@@ -29,20 +42,37 @@ const cartSchema = new mongoose.Schema({
       },
       image: {
         type: String,
-        default: '/placeholder-plant.png', // Default jika image tidak ada
+        default: '/placeholder-item.png',
       },
       stock: {
         type: Number,
-        required: true,
+        required: function () {
+          return this.type === 'plant';
+        },
         min: 0,
       },
+      size: {
+        type: String,
+        required: function () {
+          return this.type === 'maintenance';
+        },
+      },
+      additionalServices: [
+        {
+          name: String,
+          price: Number,
+        },
+      ],
     },
   ],
 }, {
-  timestamps: true, // Tambahkan createdAt dan updatedAt untuk debugging
+  timestamps: true,
 });
 
-// Pastikan plantId unik dalam items untuk mencegah duplikasi
-cartSchema.index({ userId: 1, 'items.plantId': 1 }, { unique: true });
+// Indeks unik untuk mencegah duplikasi item
+cartSchema.index(
+  { userId: 1, 'items.type': 1, 'items.itemId': 1, 'items.optionId': 1 },
+  { unique: true, partialFilterExpression: { 'items.optionId': { $exists: true } } }
+);
 
 module.exports = mongoose.models.Cart || mongoose.model('Cart', cartSchema);

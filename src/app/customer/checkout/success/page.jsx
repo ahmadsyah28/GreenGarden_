@@ -1,41 +1,47 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { FaCheckCircle, FaDownload, FaHome, FaShoppingBag } from 'react-icons/fa';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { FaCheckCircle, FaDownload, FaHome, FaShoppingBag } from "react-icons/fa";
+import { jsPDF } from "jspdf";
 
-const CheckoutSuccessPage = ({ searchParams }) => {
+const CheckoutSuccessPage = () => {
   const [order, setOrder] = useState(null);
+  const [recommendedItems, setRecommendedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [orderId, setOrderId] = useState(null);
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderId = searchParams.get("orderId");
 
-  // Ambil orderId dari searchParams saat komponen dimuat
+  // Fetch order details and recommended items
   useEffect(() => {
-    setOrderId(searchParams.orderId || null);
-  }, [searchParams]);
-
-  // Ambil data pesanan dari API
-  useEffect(() => {
-    const fetchOrder = async () => {
+    const fetchData = async () => {
       if (!orderId) {
-        setError('Nomor pesanan tidak ditemukan.');
+        setError("Nomor pesanan tidak ditemukan.");
         setLoading(false);
         return;
       }
 
       setLoading(true);
       try {
-        const response = await fetch(`/api/orders/${orderId}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Gagal mengambil detail pesanan');
+        // Fetch order details
+        const orderResponse = await fetch(`/api/orders/${orderId}`);
+        if (!orderResponse.ok) {
+          const errorData = await orderResponse.json();
+          throw new Error(errorData.error || "Gagal mengambil detail pesanan");
         }
-        const data = await response.json();
-        setOrder(data.order);
+        const orderData = await orderResponse.json();
+        setOrder(orderData.order);
+
+        // Fetch recommended plants (limit to 4)
+        const plantsResponse = await fetch("/api/plants?limit=4");
+        if (!plantsResponse.ok) {
+          throw new Error("Gagal mengambil rekomendasi produk");
+        }
+        const plantsData = await plantsResponse.json();
+        setRecommendedItems(plantsData.plants || []);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -43,56 +49,122 @@ const CheckoutSuccessPage = ({ searchParams }) => {
       }
     };
 
-    if (orderId) {
-      fetchOrder();
-    }
+    fetchData();
   }, [orderId]);
 
-  // Format harga ke Rupiah
+  // Format price to Rupiah
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
       minimumFractionDigits: 0,
     }).format(price);
   };
 
-  // Format tanggal ke format Indonesia
+  // Format date to Indonesian format
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Jakarta',
+    return new Date(date).toLocaleDateString("id-ID", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Jakarta",
     });
   };
 
-  // Hitung estimasi pengiriman
+  // Calculate estimated delivery
   const calculateEstimatedDelivery = (createdAt, shippingMethod) => {
-    const daysToAdd = shippingMethod === 'express' ? 2 : 5; // Express: 2 hari, Regular: 5 hari
+    const daysToAdd = shippingMethod === "express" ? 2 : 5;
     const deliveryDate = new Date(createdAt);
     deliveryDate.setDate(deliveryDate.getDate() + daysToAdd);
-    return deliveryDate.toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'Asia/Jakarta',
+    return deliveryDate.toLocaleDateString("id-ID", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Jakarta",
     });
   };
 
-  // Format metode pembayaran
+  // Format payment method
   const formatPaymentMethod = (method) => {
     switch (method) {
-      case 'transfer':
-        return 'Transfer Bank BCA';
-      case 'ewallet':
-        return 'E-Wallet';
-      case 'cod':
-        return 'Bayar di Tempat (COD)';
+      case "transfer":
+        return "Transfer Bank BCA";
+      case "ewallet":
+        return "E-Wallet (OVO, GoPay, DANA, LinkAja)";
+      case "cod":
+        return "Bayar di Tempat (COD)";
       default:
-        return 'Tidak Diketahui';
+        return "Tidak Diketahui";
+    }
+  };
+
+  // Generate and download invoice as PDF
+  const downloadInvoice = () => {
+    if (!order) return;
+
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("Invoice Pesanan - Green Garden", 20, 20);
+    doc.setFontSize(12);
+    doc.text(`Nomor Pesanan: ${order._id}`, 20, 30);
+    doc.text(`Tanggal: ${formatDate(order.createdAt)}`, 20, 36);
+    doc.text(`Nama: ${order.shippingInfo.nama}`, 20, 42);
+    doc.text(`Alamat: ${order.shippingInfo.alamat}, ${order.shippingInfo.kota} ${order.shippingInfo.kodePos}`, 20, 48);
+
+    doc.setFontSize(14);
+    doc.text("Detail Pesanan", 20, 60);
+    let y = 70;
+    order.items.forEach((item, index) => {
+      doc.setFontSize(12);
+      doc.text(`${index + 1}. ${item.nama}`, 20, y);
+      doc.text(`Jumlah: ${item.quantity}`, 120, y);
+      doc.text(formatPrice(item.harga * item.quantity), 160, y);
+      y += 6;
+      if (item.type === "maintenance" && item.size) {
+        doc.text(`Ukuran: ${item.size}`, 25, y);
+        y += 6;
+      }
+      if (item.type === "design" && item.additionalServices?.length > 0) {
+        doc.text(`Layanan Tambahan: ${item.additionalServices.map(s => s.name).join(", ")}`, 25, y);
+        y += 6;
+      }
+    });
+
+    doc.text(`Subtotal: ${formatPrice(order.subtotal)}`, 20, y);
+    y += 6;
+    if (order.voucherDiscount > 0) {
+      doc.text(`Diskon: -${formatPrice(order.voucherDiscount)}`, 20, y);
+      y += 6;
+    }
+    doc.text(`Pengiriman: ${formatPrice(order.shippingCost)}`, 20, y);
+    y += 6;
+    doc.setFontSize(14);
+    doc.text(`Total: ${formatPrice(order.total)}`, 20, y);
+
+    doc.save(`invoice_${order._id}.pdf`);
+  };
+
+  // Handle add to cart for recommended items
+  const addToCart = async (plantId) => {
+    try {
+      const response = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "plant",
+          itemId: plantId,
+          quantity: 1,
+          userId: order.userId,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Gagal menambahkan ke keranjang");
+      }
+      alert("Produk ditambahkan ke keranjang!");
+    } catch (err) {
+      alert(`Gagal menambahkan ke keranjang: ${err.message}`);
     }
   };
 
@@ -100,6 +172,7 @@ const CheckoutSuccessPage = ({ searchParams }) => {
     return (
       <div className="container mx-auto px-4 py-10 max-w-4xl bg-white text-center">
         <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#50806B] mx-auto"></div>
+        <p className="text-gray-600 mt-4">Memuat detail pesanan...</p>
       </div>
     );
   }
@@ -107,7 +180,7 @@ const CheckoutSuccessPage = ({ searchParams }) => {
   if (error || !order) {
     return (
       <div className="container mx-auto px-4 py-10 max-w-4xl bg-white text-center">
-        <p className="text-red-500">{error || 'Pesanan tidak ditemukan.'}</p>
+        <p className="text-red-500 text-lg font-semibold">{error || "Pesanan tidak ditemukan."}</p>
         <Link
           href="/"
           className="inline-block bg-[#50806B] text-white py-2 px-6 rounded-lg hover:bg-opacity-90 transition mt-4"
@@ -121,21 +194,18 @@ const CheckoutSuccessPage = ({ searchParams }) => {
   return (
     <div className="container mx-auto px-4 py-10 max-w-4xl bg-white">
       <div className="bg-white rounded-lg shadow-lg p-6 md:p-10">
-        {/* Ikon Sukses & Pesan */}
+        {/* Success Icon & Message */}
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <FaCheckCircle className="text-green-500 text-6xl" />
-          </div>
+          <FaCheckCircle className="text-green-500 text-6xl mx-auto mb-4" />
           <h1 className="text-2xl md:text-3xl font-bold text-[#404041] mb-2">Pesanan Berhasil!</h1>
           <p className="text-gray-600">
             Terima kasih telah berbelanja di Green Garden. Pesanan Anda telah kami terima dan sedang diproses.
           </p>
         </div>
 
-        {/* Detail Pesanan */}
+        {/* Order Details */}
         <div className="bg-gray-50 rounded-lg p-6 mb-8">
           <h2 className="text-xl font-bold text-[#404041] mb-4">Detail Pesanan</h2>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-gray-600">Nomor Pesanan:</p>
@@ -145,9 +215,6 @@ const CheckoutSuccessPage = ({ searchParams }) => {
               <p className="text-gray-600">Tanggal Pesanan:</p>
               <p className="font-semibold text-[#404041]">{formatDate(order.createdAt)}</p>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-gray-600">Metode Pembayaran:</p>
               <p className="font-semibold text-[#404041]">{formatPaymentMethod(order.paymentMethod)}</p>
@@ -156,32 +223,103 @@ const CheckoutSuccessPage = ({ searchParams }) => {
               <p className="text-gray-600">Total Pembayaran:</p>
               <p className="font-semibold text-[#50806B]">{formatPrice(order.total)}</p>
             </div>
+            <div>
+              <p className="text-gray-600">Estimasi Pengiriman:</p>
+              <p className="font-semibold text-[#404041]">
+                {calculateEstimatedDelivery(order.createdAt, order.shippingMethod)}
+              </p>
+            </div>
           </div>
 
-          <div>
-            <p className="text-gray-600">Estimasi Pengiriman:</p>
-            <p className="font-semibold text-[#404041]">
-              {calculateEstimatedDelivery(order.createdAt, order.shippingMethod)}
+          {/* Shipping Information */}
+          <div className="mt-4">
+            <p className="text-gray-600 font-semibold">Informasi Pengiriman:</p>
+            <p className="text-[#404041]">
+              {order.shippingInfo.nama}<br />
+              {order.shippingInfo.alamat}, {order.shippingInfo.kota}, {order.shippingInfo.kodePos}<br />
+              {order.shippingInfo.nomorTelepon}<br />
+              {order.shippingInfo.email}
             </p>
+            {order.shippingInfo.catatan && (
+              <p className="text-gray-600 mt-2">
+                <span className="font-semibold">Catatan:</span> {order.shippingInfo.catatan}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Instruksi Pembayaran (jika transfer atau e-wallet) */}
-        {['transfer', 'ewallet'].includes(order.paymentMethod) && (
+        {/* Order Items */}
+        <div className="bg-gray-50 rounded-lg p-6 mb-8">
+          <h2 className="text-xl font-bold text-[#404041] mb-4">Item Pesanan</h2>
+          {order.items.map((item) => (
+            <div
+              key={`${item.itemId}-${item.type}-${item.optionId || ""}`}
+              className="flex items-center mb-4 border-b pb-4"
+            >
+              <div className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
+                <Image
+                  src={item.image}
+                  alt={item.nama}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="ml-4 flex-grow">
+                <h3 className="text-[#404041] font-medium">{item.nama}</h3>
+                <p className="text-gray-500 text-sm">
+                  {item.quantity} x {formatPrice(item.harga)}
+                </p>
+                {item.type === "maintenance" && item.size && (
+                  <p className="text-gray-500 text-sm">Ukuran: {item.size}</p>
+                )}
+                {item.type === "design" && item.additionalServices?.length > 0 && (
+                  <p className="text-gray-500 text-sm">
+                    Layanan Tambahan: {item.additionalServices.map((s) => s.name).join(", ")}
+                  </p>
+                )}
+              </div>
+              <div className="text-right">
+                <p className="font-medium">{formatPrice(item.harga * item.quantity)}</p>
+              </div>
+            </div>
+          ))}
+          <div className="mt-4 space-y-2">
+            <div className="flex justify-between text-[#404041]">
+              <span>Subtotal</span>
+              <span>{formatPrice(order.subtotal)}</span>
+            </div>
+            {order.voucherDiscount > 0 && (
+              <div className="flex justify-between text-green-500">
+                <span>Diskon</span>
+                <span>-{formatPrice(order.voucherDiscount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-[#404041]">
+              <span>Pengiriman</span>
+              <span>{formatPrice(order.shippingCost)}</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold">
+              <span>Total</span>
+              <span className="text-[#50806B]">{formatPrice(order.total)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Instructions */}
+        {["transfer", "ewallet"].includes(order.paymentMethod) && (
           <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-6 mb-8">
             <h2 className="text-xl font-bold text-[#404041] mb-4">Instruksi Pembayaran</h2>
-
             <div className="flex items-start mb-4">
               <div className="relative w-12 h-12 mr-4">
                 <Image
-                  src={order.paymentMethod === 'transfer' ? '/images/bank-bca.png' : '/images/ewallet.png'}
-                  alt={order.paymentMethod === 'transfer' ? 'BCA' : 'E-Wallet'}
+                  src={order.paymentMethod === "transfer" ? "/images/bank-bca.png" : "/images/ewallet.png"}
+                  alt={order.paymentMethod === "transfer" ? "BCA" : "E-Wallet"}
                   fill
                   className="object-contain"
                 />
               </div>
               <div>
-                {order.paymentMethod === 'transfer' ? (
+                {order.paymentMethod === "transfer" ? (
                   <>
                     <p className="font-semibold text-[#404041]">Bank BCA</p>
                     <p className="text-gray-600 mb-1">Nomor Rekening: 1234567890</p>
@@ -196,17 +334,16 @@ const CheckoutSuccessPage = ({ searchParams }) => {
                 )}
               </div>
             </div>
-
             <div className="bg-white rounded-lg p-4 border border-gray-200">
               <p className="text-sm text-gray-600 mb-2">
-                Harap selesaikan pembayaran Anda dalam waktu <span className="font-semibold">24 jam</span> untuk memastikan pesanan Anda diproses.
+                Harap selesaikan pembayaran dalam waktu <span className="font-semibold">24 jam</span> untuk memastikan pesanan diproses.
               </p>
               <p className="text-sm text-gray-600">
-                Setelah melakukan pembayaran, konfirmasi dengan mengirimkan bukti transfer ke WhatsApp:{' '}
+                Konfirmasi pembayaran ke WhatsApp:{" "}
                 <a href="https://wa.me/6281234567890" className="text-[#50806B] hover:underline">
                   081234567890
-                </a>{' '}
-                atau email:{' '}
+                </a>{" "}
+                atau email:{" "}
                 <a href="mailto:orders@greengarden.com" className="text-[#50806B] hover:underline">
                   orders@greengarden.com
                 </a>
@@ -215,36 +352,35 @@ const CheckoutSuccessPage = ({ searchParams }) => {
           </div>
         )}
 
-        {/* Informasi & Kontak */}
+        {/* Contact Information */}
         <div className="mb-8">
           <h2 className="text-xl font-bold text-[#404041] mb-4">Informasi Penting</h2>
-
           <ul className="list-disc list-inside space-y-2 text-gray-600">
             <li>Email konfirmasi telah dikirim ke {order.shippingInfo.email}.</li>
-            <li>Anda akan menerima notifikasi saat pesanan Anda dikirim.</li>
+            <li>Notifikasi akan dikirim saat pesanan Anda dikirim.</li>
             <li>
-              Untuk pertanyaan atau bantuan, hubungi{' '}
+              Hubungi kami di{" "}
               <a href="mailto:cs@greengarden.com" className="text-[#50806B] hover:underline">
                 cs@greengarden.com
-              </a>{' '}
-              atau WhatsApp ke{' '}
+              </a>{" "}
+              atau WhatsApp{" "}
               <a href="https://wa.me/6281234567890" className="text-[#50806B] hover:underline">
                 081234567890
-              </a>
+              </a>{" "}
+              untuk bantuan.
             </li>
           </ul>
         </div>
 
-        {/* Tombol Aksi */}
+        {/* Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <button
+            onClick={downloadInvoice}
             className="flex items-center justify-center bg-white border border-[#50806B] text-[#50806B] px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition"
-            onClick={() => alert('Fitur unduh invoice belum diimplementasikan.')}
           >
             <FaDownload className="mr-2" />
             Unduh Invoice
           </button>
-
           <Link
             href="/account/orders"
             className="flex items-center justify-center bg-white border border-[#50806B] text-[#50806B] px-4 py-3 rounded-lg font-medium hover:bg-gray-50 transition"
@@ -252,7 +388,6 @@ const CheckoutSuccessPage = ({ searchParams }) => {
             <FaShoppingBag className="mr-2" />
             Lihat Pesanan
           </Link>
-
           <Link
             href="/"
             className="flex items-center justify-center bg-[#50806B] text-white px-4 py-3 rounded-lg font-medium hover:bg-opacity-90 transition"
@@ -263,88 +398,41 @@ const CheckoutSuccessPage = ({ searchParams }) => {
         </div>
       </div>
 
-      {/* Rekomendasi Produk (Opsional) */}
-      <div className="mt-12">
-        <h2 className="text-xl font-bold text-[#404041] mb-6 text-center">Rekomendasi untuk Anda</h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Produk 1 */}
-          <div className="border border-gray-200 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative w-full h-48">
-              <Image
-                src="/images/tanaman/tanaman3.png"
-                alt="Syngonium Rayii"
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="p-4">
-              <h3 className="font-semibold text-[#404041] mb-1">Syngonium Rayii</h3>
-              <p className="text-[#50806B] font-medium mb-3">Rp 25.000</p>
-              <button className="w-full bg-[#50806B] text-white py-2 rounded-lg hover:bg-opacity-90 transition">
-                Tambah ke Keranjang
-              </button>
-            </div>
-          </div>
-
-          {/* Produk 2 */}
-          <div className="border border-gray-200 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative w-full h-48">
-              <Image
-                src="/images/tanaman/tanaman4.png"
-                alt="Pineapple"
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="p-4">
-              <h3 className="font-semibold text-[#404041] mb-1">Pineapple</h3>
-              <p className="text-[#50806B] font-medium mb-3">Rp 20.000</p>
-              <button className="w-full bg-[#50806B] text-white py-2 rounded-lg hover:bg-opacity-90 transition">
-                Tambah ke Keranjang
-              </button>
-            </div>
-          </div>
-
-          {/* Produk 3 */}
-          <div className="border border-gray-200 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative w-full h-48">
-              <Image
-                src="/images/tanaman/tanaman7.png"
-                alt="Chinese Evergreen"
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="p-4">
-              <h3 className="font-semibold text-[#404041] mb-1">Chinese Evergreen</h3>
-              <p className="text-[#50806B] font-medium mb-3">Rp 75.000</p>
-              <button className="w-full bg-[#50806B] text-white py-2 rounded-lg hover:bg-opacity-90 transition">
-                Tambah ke Keranjang
-              </button>
-            </div>
-          </div>
-
-          {/* Produk 4 */}
-          <div className="border border-gray-200 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-            <div className="relative w-full h-48">
-              <Image
-                src="/images/tanaman/tanaman8.png"
-                alt="Aglonema Red"
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="p-4">
-              <h3 className="font-semibold text-[#404041] mb-1">Aglonema Red</h3>
-              <p className="text-[#50806B] font-medium mb-3">Rp 45.000</p>
-              <button className="w-full bg-[#50806B] text-white py-2 rounded-lg hover:bg-opacity-90 transition">
-                Tambah ke Keranjang
-              </button>
-            </div>
+      {/* Recommended Products */}
+      {recommendedItems.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-xl font-bold text-[#404041] mb-6 text-center">
+            Rekomendasi untuk Anda
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {recommendedItems.map((item) => (
+              <div
+                key={item._id}
+                className="border border-gray-200 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                <div className="relative w-full h-48">
+                  <Image
+                    src={item.image || "/images/placeholder-plant.png"}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-[#404041] mb-1">{item.name}</h3>
+                  <p className="text-[#50806B] font-medium mb-3">{formatPrice(item.price)}</p>
+                  <button
+                    onClick={() => addToCart(item._id)}
+                    className="w-full bg-[#50806B] text-white py-2 rounded-lg hover:bg-opacity-90 transition"
+                  >
+                    Tambah ke Keranjang
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
