@@ -5,6 +5,9 @@ import { cookies } from 'next/headers';
 import connectMongo from '@/lib/mongodb';
 import User from '@/models/User';
 
+// Tandai rute sebagai dinamis
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   await connectMongo();
 
@@ -22,18 +25,18 @@ export async function POST(request) {
     }
 
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role }, // Ubah userId menjadi id agar sesuai dengan /api/auth/me
+      { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
-    // Atur cookie auth_token
-    const cookieStore = cookies();
+    // PERBAIKAN: Tambahkan await di depan cookies()
+    const cookieStore = await cookies();
     cookieStore.set('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Hanya secure di production
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 60 * 60, // 1 jam (sesuaikan dengan expiresIn token)
+      maxAge: 60 * 60, // 1 jam
       path: '/',
     });
 

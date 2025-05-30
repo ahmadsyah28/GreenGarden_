@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import { verify } from 'jsonwebtoken';
 import { cookies } from 'next/headers';
-import connectToDatabase from '@/lib/mongodb';
+import connectMongo from '@/lib/mongodb'; // Gunakan import yang sama dengan login
 import User from '@/models/User';
 import mongoose from 'mongoose';
 
+// Tandai rute sebagai dinamis
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
-    await connectToDatabase();
+    await connectMongo(); // Gunakan nama yang sama dengan login
     
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;

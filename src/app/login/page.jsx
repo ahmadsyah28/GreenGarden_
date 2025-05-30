@@ -21,20 +21,22 @@ export default function Login() {
   const router = useRouter();
 
   useEffect(() => {
-    // Jika sudah terautentikasi, redirect sesuai peran
-    if (isAuthenticated) {
-      if (user?.role === 'admin') {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/");
-      }
+  console.log('Login useEffect: isAuthenticated=', isAuthenticated, 'user=', user);
+  if (isAuthenticated) {
+    if (user?.role === 'admin') {
+      console.log('Mengalihkan ke /admin/');
+      router.push('/admin/');
+    } else {
+      console.log('Mengalihkan ke /');
+      router.push('/');
     }
-    
-    if (error) {
-      setAlert({ show: true, type: "error", message: error });
-      clearErrors();
-    }
-  }, [isAuthenticated, user, error, router, clearErrors]);
+  }
+  if (error) {
+    console.log('Error:', error);
+    setAlert({ show: true, type: 'error', message: error });
+    clearErrors();
+  }
+}, [isAuthenticated, user, error, router, clearErrors]);
 
   const { email, password } = formData;
 
