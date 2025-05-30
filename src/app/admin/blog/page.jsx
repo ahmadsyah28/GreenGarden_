@@ -19,6 +19,7 @@ const categories = [
   "Tanaman Fungsional",
   "Herbal",
 ];
+import { useRouter } from "next/navigation";
 
 export default function BlogManagementPage() {
   const [blogs, setBlogs] = useState([]);
@@ -28,6 +29,7 @@ export default function BlogManagementPage() {
   const [itemsPerPage] = useState(5);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [blogToDelete, setBlogToDelete] = useState(null);
+  const router = useRouter();
 
   // Fetch blogs dari API
   useEffect(() => {
@@ -114,13 +116,13 @@ export default function BlogManagementPage() {
             ))}
           </select>
         </div>
-        <a
-          href="/admin/blog/new"
+        <button
+          onClick={() => router.push("/admin/blog/new")}
           className="flex items-center justify-center px-4 py-2 bg-[#50806B] text-white rounded-lg hover:bg-[#3d6854] transition-colors duration-300"
         >
           <FaPlus className="mr-2" />
           Tulis Artikel Baru
-        </a>
+        </button>
       </div>
 
       {/* Blog Table */}
@@ -230,28 +232,34 @@ export default function BlogManagementPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                     {blog.views}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <a
-                      href={`/admin/blog/${blog._id}`}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                      title="Lihat Artikel"
-                    >
-                      <FaEye />
-                    </a>
-                    <a
-                      href={`/admin/blog/edit/${blog._id}`}
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      title="Edit Artikel"
-                    >
-                      <FaEdit />
-                    </a>
-                    <button
-                      onClick={() => handleDeleteClick(blog)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Hapus Artikel"
-                    >
-                      <FaTrash />
-                    </button>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => router.push(`/admin/blog/${blog._id}`)}
+                        className="flex items-center justify-center p-2 text-blue-600 hover:text-white hover:bg-blue-600 rounded-lg transition-colors duration-300 border border-blue-600"
+                        title="Lihat Artikel"
+                      >
+                        <FaEye className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          router.push(`/admin/blog/edit/${blog._id}`)
+                        }
+                        className="flex items-center justify-center p-2 text-indigo-600 hover:text-white hover:bg-indigo-600 rounded-lg transition-colors duration-300 border border-indigo-600"
+                        title="Edit Artikel"
+                      >
+                        <FaEdit className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteClick(blog)}
+                        className="flex items-center justify-center p-2 text-red-600 hover:text-white hover:bg-red-600 rounded-lg transition-colors duration-300 border border-red-600"
+                        title="Hapus Artikel"
+                      >
+                        <FaTrash className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

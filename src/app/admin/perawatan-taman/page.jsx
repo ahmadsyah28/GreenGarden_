@@ -225,13 +225,13 @@ export default function GardenCareManagementPage() {
             ))}
           </select>
         </div>
-        <a
-          href="/admin/perawatan-taman/new"
+           <button
+          onClick={() => router.push("/admin/perawatan-taman/new")}
           className="flex items-center justify-center px-4 py-2 bg-[#50806B] text-white rounded-lg hover:bg-[#3d6854] transition-colors duration-300"
         >
           <FaPlus className="mr-2" />
           Tambah Paket
-        </a>
+        </button>
       </div>
 
       {/* Packages Table */}
@@ -290,13 +290,15 @@ export default function GardenCareManagementPage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
                     <div className="flex items-center justify-center gap-3">
-                      <a
-                        href={`/admin/perawatan-taman/edit/${pkg.id}`}
+                      <button
+                        onClick={() =>
+                          router.push(`/admin/tanaman-hias/edit/${plant._id}`)
+                        }
                         className="text-indigo-600 hover:text-indigo-900"
                         title="Edit Paket"
                       >
                         <FaEdit />
-                      </a>
+                      </button>
                       <button
                         onClick={() => handleDeleteClick(pkg)}
                         className="text-red-600 hover:text-red-900"

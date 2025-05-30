@@ -11,6 +11,7 @@ import {
   FaTags,
   FaBoxOpen,
 } from "react-icons/fa";
+import { useRouter } from "next/navigation";
 
 export default function DesainManagementPage() {
   const [desains, setDesains] = useState([]);
@@ -27,6 +28,7 @@ export default function DesainManagementPage() {
     key: "createdAt",
     direction: "descending",
   });
+  const router = useRouter();
 
   // Fetch designs and categories when component mounts
   useEffect(() => {
@@ -262,13 +264,13 @@ export default function DesainManagementPage() {
         </div>
 
         {/* Add Design Button */}
-        <a
-          href="/admin/desain-taman/new"
+        <button
+          onClick={() => router.push("/admin/desain-taman/new")}
           className="flex items-center justify-center px-4 py-2 bg-[#50806B] text-white rounded-lg hover:bg-[#3d6854] transition-colors duration-300"
         >
           <FaPlus className="mr-2" />
-          Tambah Desain
-        </a>
+          Tambah Tanaman
+        </button>
       </div>
 
       {/* Designs Table */}
@@ -380,13 +382,15 @@ export default function DesainManagementPage() {
 
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-center align-middle">
                     <div className="flex items-center justify-center gap-3">
-                      <a
-                        href={`/admin/desain-taman/edit/${desain._id}`}
+                      <button
+                        onClick={() =>
+                          router.push(`/admin/desain-taman/edit/${desain._id}`)
+                        }
                         className="text-indigo-600 hover:text-indigo-900"
                         title="Edit Desain"
                       >
                         <FaEdit />
-                      </a>
+                      </button>
                       <button
                         onClick={() => handleDeleteClick(desain)}
                         className="text-red-600 hover:text-red-900"
