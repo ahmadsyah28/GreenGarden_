@@ -1,58 +1,161 @@
 "use client";
 
+import { useState, useEffect, useContext } from "react";
 import { FaUsers, FaShoppingCart, FaBlog, FaLeaf } from "react-icons/fa";
-
-// Example stats cards data
-const statsCards = [
-  {
-    title: "Total Pengguna",
-    value: "1,254",
-    icon: <FaUsers className="text-blue-500" />,
-    change: "+12.5%",
-    period: "dari bulan lalu"
-  },
-  {
-    title: "Total Pesanan",
-    value: "845",
-    icon: <FaShoppingCart className="text-green-500" />,
-    change: "+18.2%",
-    period: "dari bulan lalu"
-  },
-  {
-    title: "Total Artikel",
-    value: "126",
-    icon: <FaBlog className="text-purple-500" />,
-    change: "+5.3%",
-    period: "dari bulan lalu"
-  },
-  {
-    title: "Total Produk",
-    value: "328",
-    icon: <FaLeaf className="text-[#50806B]" />,
-    change: "+7.8%",
-    period: "dari bulan lalu"
-  }
-];
-
-// Example recent orders data
-const recentOrders = [
-  { id: "ORD-3721", customer: "Budi Santoso", date: "20 Apr 2025", status: "Selesai", amount: "Rp 350.000" },
-  { id: "ORD-3720", customer: "Dewi Lestari", date: "19 Apr 2025", status: "Diproses", amount: "Rp 125.000" },
-  { id: "ORD-3719", customer: "Agus Wijaya", date: "19 Apr 2025", status: "Dikirim", amount: "Rp 275.000" },
-  { id: "ORD-3718", customer: "Siti Rahayu", date: "18 Apr 2025", status: "Selesai", amount: "Rp 450.000" },
-  { id: "ORD-3717", customer: "Hendro Purnomo", date: "17 Apr 2025", status: "Selesai", amount: "Rp 180.000" }
-];
-
-// Example recent users data
-const recentUsers = [
-  { name: "Anita Wijaya", email: "anita@example.com", date: "20 Apr 2025", status: "Active" },
-  { name: "Rudi Hartono", email: "rudi@example.com", date: "19 Apr 2025", status: "Active" },
-  { name: "Maya Indah", email: "maya@example.com", date: "18 Apr 2025", status: "Active" },
-  { name: "Doni Kusuma", email: "doni@example.com", date: "17 Apr 2025", status: "Inactive" },
-  { name: "Linda Sari", email: "linda@example.com", date: "16 Apr 2025", status: "Active" }
-];
+import AuthContext from "@/context/AuthContext";
 
 export default function AdminDashboardPage() {
+  const { user, isAuthenticated } = useContext(AuthContext);
+  const [dashboardData, setDashboardData] = useState({
+    orders: [],
+    users: [],
+    stats: {
+      totalUsers: 0,
+      totalOrders: 0,
+      totalArticles: 0,
+      totalProducts: 0
+    },
+    loading: true
+  });
+
+  // Fetch dashboard data
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== "admin") return;
+
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch orders
+        const ordersResponse = await fetch("/api/admin/orders", {
+          headers: {
+            Authorization: `Bearer ${document.cookie
+              .split("; ")
+              .find((row) => row.startsWith("auth_token="))
+              ?.split("=")[1]}`,
+          },
+        });
+
+        let orders = [];
+        if (ordersResponse.ok) {
+          orders = await ordersResponse.json();
+        }
+
+        // Fetch users (create this endpoint later)
+        // const usersResponse = await fetch("/api/admin/users", {
+        //   headers: {
+        //     Authorization: `Bearer ${document.cookie
+        //       .split("; ")
+        //       .find((row) => row.startsWith("auth_token="))
+        //       ?.split("=")[1]}`,
+        //   },
+        // });
+
+        // let users = [];
+        // if (usersResponse.ok) {
+        //   users = await usersResponse.json();
+        // }
+
+        // For now, use dummy users data
+        const users = [
+          { _id: "1", name: "Anita Wijaya", email: "anita@example.com", createdAt: "2025-04-20", status: "active" },
+          { _id: "2", name: "Rudi Hartono", email: "rudi@example.com", createdAt: "2025-04-19", status: "active" },
+          { _id: "3", name: "Maya Indah", email: "maya@example.com", createdAt: "2025-04-18", status: "active" },
+          { _id: "4", name: "Doni Kusuma", email: "doni@example.com", createdAt: "2025-04-17", status: "inactive" },
+          { _id: "5", name: "Linda Sari", email: "linda@example.com", createdAt: "2025-04-16", status: "active" }
+        ];
+
+        setDashboardData({
+          orders: orders.slice(0, 5), // Get latest 5 orders
+          users: users.slice(0, 5), // Get latest 5 users
+          stats: {
+            totalUsers: users.length,
+            totalOrders: orders.length,
+            totalArticles: 126, // Dummy data
+            totalProducts: 328 // Dummy data
+          },
+          loading: false
+        });
+
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        setDashboardData(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchDashboardData();
+  }, [isAuthenticated, user]);
+
+  // Format price to Rupiah
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
+
+  // Format date
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    });
+  };
+
+  // Get status badge class
+  const getStatusBadge = (status) => {
+    const statusMap = {
+      'selesai': 'bg-green-100 text-green-800',
+      'shipped': 'bg-blue-100 text-blue-800',
+      'processing': 'bg-yellow-100 text-yellow-800',
+      'pending': 'bg-gray-100 text-gray-800',
+      'cancelled': 'bg-red-100 text-red-800',
+      'active': 'bg-green-100 text-green-800',
+      'inactive': 'bg-red-100 text-red-800'
+    };
+    return statusMap[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  // Stats cards data with real data
+  const statsCards = [
+    {
+      title: "Total Pengguna",
+      value: dashboardData.stats.totalUsers.toLocaleString(),
+      icon: <FaUsers className="text-blue-500" />,
+      change: "+12.5%",
+      period: "dari bulan lalu"
+    },
+    {
+      title: "Total Pesanan",
+      value: dashboardData.stats.totalOrders.toLocaleString(),
+      icon: <FaShoppingCart className="text-green-500" />,
+      change: "+18.2%",
+      period: "dari bulan lalu"
+    },
+    {
+      title: "Total Artikel",
+      value: dashboardData.stats.totalArticles.toLocaleString(),
+      icon: <FaBlog className="text-purple-500" />,
+      change: "+5.3%",
+      period: "dari bulan lalu"
+    },
+    {
+      title: "Total Produk",
+      value: dashboardData.stats.totalProducts.toLocaleString(),
+      icon: <FaLeaf className="text-[#50806B]" />,
+      change: "+7.8%",
+      period: "dari bulan lalu"
+    }
+  ];
+
+  if (dashboardData.loading) {
+    return (
+      <div className="p-1 flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#285A43]"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white">
       <div className="mb-6">
@@ -104,22 +207,35 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {recentOrders.map((order, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{order.id}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{order.customer}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{order.date}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${order.status === 'Selesai' ? 'bg-green-100 text-green-800' : 
-                          order.status === 'Dikirim' ? 'bg-blue-100 text-blue-800' : 
-                          'bg-yellow-100 text-yellow-800'}`}>
-                        {order.status}
-                      </span>
+                {dashboardData.orders.length > 0 ? (
+                  dashboardData.orders.map((order, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {order._id.slice(-8).toUpperCase()}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        {order.user_id?.name || "User tidak ditemukan"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        {formatDate(order.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(order.status)}`}>
+                          {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        {formatPrice(order.total_price)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="px-4 py-3 text-center text-gray-500">
+                      Belum ada pesanan
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{order.amount}</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -142,19 +258,32 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {recentUsers.map((user, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{user.date}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                        ${user.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {user.status}
-                      </span>
+                {dashboardData.users.length > 0 ? (
+                  dashboardData.users.map((user, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {user.name}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        {user.email}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                        {formatDate(user.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(user.status)}`}>
+                          {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-3 text-center text-gray-500">
+                      Belum ada pengguna
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -172,10 +301,10 @@ export default function AdminDashboardPage() {
             }} 
           />
           <div className="relative z-10">
-            <h3 className="text-xl font-bold mb-2">Tambah Produk Baru</h3>
-            <p className="text-white/80 mb-4">Tambahkan produk tanaman baru ke katalog Anda</p>
+            <h3 className="text-xl font-bold mb-2">Tambah Tanaman Hias Baru</h3>
+            <p className="text-white/80 mb-4">Tambahkan produk tanaman baru Anda</p>
             <a 
-              href="/admin/products/new" 
+              href="/admin/tanaman-hias" 
               className="inline-flex items-center px-4 py-2 bg-white text-[#3d6854] rounded-lg font-medium transition-colors hover:bg-gray-100"
             >
               Tambah Produk
@@ -195,7 +324,7 @@ export default function AdminDashboardPage() {
             <h3 className="text-xl font-bold mb-2">Tulis Artikel Blog</h3>
             <p className="text-white/80 mb-4">Buat konten baru untuk blog GreenGarden</p>
             <a 
-              href="/admin/blog/new" 
+              href="/admin/blog" 
               className="inline-flex items-center px-4 py-2 bg-white text-[#3d6854] rounded-lg font-medium transition-colors hover:bg-gray-100"
             >
               Tulis Artikel

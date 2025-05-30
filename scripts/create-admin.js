@@ -11,8 +11,8 @@ const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/greengarden';
 
 // Admin credentials
 const adminData = {
-  name: 'Admin GreenGarden',
-  email: 'admin@greengarden.com',
+  name: 'Admin GreenGarden 2',
+  email: 'admin2@greengarden.com',
   password: 'Admin123?', // Password yang mudah diingat
   role: 'admin',
   createdAt: new Date(),

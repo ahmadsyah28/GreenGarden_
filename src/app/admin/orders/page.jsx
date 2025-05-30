@@ -1,4 +1,4 @@
-// src/app/admin/orders/page.jsx
+// src/app/admin/orders/page.jsx (Updated)
 "use client";
 
 import { useState, useEffect, useContext } from "react";
@@ -14,7 +14,11 @@ import { useRouter } from "next/navigation";
 import AuthContext from "@/context/AuthContext";
 
 export default function OrdersManagementPage() {
-  const { user, isAuthenticated, loading: authLoading } = useContext(AuthContext);
+  const {
+    user,
+    isAuthenticated,
+    loading: authLoading,
+  } = useContext(AuthContext);
   const router = useRouter();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,6 +27,7 @@ export default function OrdersManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [showDetails, setShowDetails] = useState(null);
+  const [alert, setAlert] = useState({ show: false, type: "", message: "" });
 
   // Redirect if not authenticated or not an admin
   useEffect(() => {
@@ -38,100 +43,92 @@ export default function OrdersManagementPage() {
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        const response = await fetch("/api/orders", {
+        const response = await fetch("/api/admin/orders", {
           headers: {
-            Authorization: `Bearer ${document.cookie
-              .split("; ")
-              .find((row) => row.startsWith("auth_token="))
-              ?.split("=")[1]}`,
+            Authorization: `Bearer ${
+              document.cookie
+                .split("; ")
+                .find((row) => row.startsWith("auth_token="))
+                ?.split("=")[1]
+            }`,
           },
         });
-        const data = await response.json();
+
         if (response.ok) {
+          const data = await response.json();
           setOrders(data);
         } else {
-          console.error("Gagal mengambil pesanan:", data.error);
-          setAlert({ show: true, type: "error", message: "Terjadi kesalahan saat mengambil data pesanan" });
+          const errorData = await response.json();
+          console.error("Gagal mengambil pesanan:", errorData.error);
+          setAlert({
+            show: true,
+            type: "error",
+            message: "Terjadi kesalahan saat mengambil data pesanan",
+          });
         }
       } catch (error) {
         console.error("Error:", error);
-        setAlert({ show: true, type: "error", message: "Terjadi kesalahan saat mengambil data pesanan" });
+        setAlert({
+          show: true,
+          type: "error",
+          message: "Terjadi kesalahan saat mengambil data pesanan",
+        });
       } finally {
         setLoading(false);
       }
     };
+
     fetchOrders();
   }, [isAuthenticated, user]);
 
   // Update order status
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      const response = await fetch("/api/orders", {
+      const response = await fetch("/api/admin/orders", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("auth_token="))
-            ?.split("=")[1]}`,
+          Authorization: `Bearer ${
+            document.cookie
+              .split("; ")
+              .find((row) => row.startsWith("auth_token="))
+              ?.split("=")[1]
+          }`,
         },
         body: JSON.stringify({
           orderId,
           status: newStatus,
-          adminId: user?._id, // Use user._id from AuthContext
+          adminId: user?._id,
         }),
       });
-      const data = await response.json();
+
       if (response.ok) {
+        const updatedOrder = await response.json();
         setOrders((prev) =>
           prev.map((order) =>
             order._id === orderId ? { ...order, status: newStatus } : order
           )
         );
-        setAlert({ show: true, type: "success", message: "Status pesanan berhasil diperbarui!" });
+        setAlert({
+          show: true,
+          type: "success",
+          message: "Status pesanan berhasil diperbarui!",
+        });
       } else {
-        setAlert({ show: true, type: "error", message: `Gagal memperbarui status: ${data.error}` });
+        const errorData = await response.json();
+        setAlert({
+          show: true,
+          type: "error",
+          message: `Gagal memperbarui status: ${errorData.error}`,
+        });
       }
     } catch (error) {
       console.error("Error:", error);
-      setAlert({ show: true, type: "error", message: "Terjadi kesalahan saat memperbarui status pesanan." });
-    }
-  };
-
-  // Update booking status
-  const updateBookingStatus = async (bookingId, newStatus) => {
-    try {
-      const response = await fetch(`/api/service-bookings/${bookingId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("auth_token="))
-            ?.split("=")[1]}`,
-        },
-        body: JSON.stringify({
-          status: newStatus,
-          adminId: user?._id, // Use user._id from AuthContext
-        }),
+      setAlert({
+        show: true,
+        type: "error",
+        message: "Terjadi kesalahan saat memperbarui status pesanan.",
       });
-      const data = await response.json();
-      if (response.ok) {
-        setOrders((prev) =>
-          prev.map((order) => ({
-            ...order,
-            bookings: order.bookings.map((booking) =>
-              booking._id === bookingId ? { ...booking, status: newStatus } : booking
-            ),
-          }))
-        );
-        setAlert({ show: true, type: "success", message: "Status booking layanan berhasil diperbarui!" });
-      } else {
-        setAlert({ show: true, type: "error", message: `Gagal memperbarui status booking: ${data.error}` });
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      setAlert({ show: true, type: "error", message: "Terjadi kesalahan saat memperbarui status booking." });
     }
   };
 
@@ -147,9 +144,10 @@ export default function OrdersManagementPage() {
   // Filter orders
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
-      order.user_id.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.user_id?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order._id.toString().includes(searchTerm);
-    const matchesStatus = selectedStatus === "Semua" || order.status === selectedStatus;
+    const matchesStatus =
+      selectedStatus === "Semua" || order.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -161,8 +159,15 @@ export default function OrdersManagementPage() {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-  // Alert state for success/error messages
-  const [alert, setAlert] = useState({ show: false, type: "", message: "" });
+  // Auto hide alert after 5 seconds
+  useEffect(() => {
+    if (alert.show) {
+      const timer = setTimeout(() => {
+        setAlert({ show: false, type: "", message: "" });
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [alert.show]);
 
   if (authLoading || loading) {
     return (
@@ -176,7 +181,9 @@ export default function OrdersManagementPage() {
     <div className="p-1 bg-white">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Kelola Pesanan</h1>
-        <p className="text-gray-600 mt-1">Lihat dan kelola semua pesanan pelanggan Green Garden</p>
+        <p className="text-gray-600 mt-1">
+          Lihat dan kelola semua pesanan pelanggan Green Garden
+        </p>
       </div>
 
       {/* Alert */}
@@ -202,7 +209,9 @@ export default function OrdersManagementPage() {
             </div>
             <div className="ml-4">
               <p className="text-gray-600 text-sm font-medium">Total Pesanan</p>
-              <h3 className="text-2xl font-bold text-gray-800">{orders.length}</h3>
+              <h3 className="text-2xl font-bold text-gray-800">
+                {orders.length}
+              </h3>
             </div>
           </div>
         </div>
@@ -212,9 +221,11 @@ export default function OrdersManagementPage() {
               <FaCheckCircle className="text-blue-600" />
             </div>
             <div className="ml-4">
-              <p className="text-gray-600 text-sm font-medium">Pesanan Selesai</p>
+              <p className="text-gray-600 text-sm font-medium">
+                Pesanan Selesai
+              </p>
               <h3 className="text-2xl font-bold text-gray-800">
-                {orders.filter((o) => o.status === "completed").length}
+                {orders.filter((o) => o.status === "selesai").length}
               </h3>
             </div>
           </div>
@@ -225,9 +236,11 @@ export default function OrdersManagementPage() {
               <FaCalendarAlt className="text-yellow-600" />
             </div>
             <div className="ml-4">
-              <p className="text-gray-600 text-sm font-medium">Booking Aktif</p>
+              <p className="text-gray-600 text-sm font-medium">
+                Sedang Diproses
+              </p>
               <h3 className="text-2xl font-bold text-gray-800">
-                {orders.flatMap((o) => o.bookings).filter((b) => b.status === "confirmed").length}
+                {orders.filter((o) => o.status === "processing").length}
               </h3>
             </div>
           </div>
@@ -238,7 +251,9 @@ export default function OrdersManagementPage() {
               <FaTimesCircle className="text-red-600" />
             </div>
             <div className="ml-4">
-              <p className="text-gray-600 text-sm font-medium">Pesanan Dibatalkan</p>
+              <p className="text-gray-600 text-sm font-medium">
+                Pesanan Dibatalkan
+              </p>
               <h3 className="text-2xl font-bold text-gray-800">
                 {orders.filter((o) => o.status === "cancelled").length}
               </h3>
@@ -270,7 +285,8 @@ export default function OrdersManagementPage() {
             <option value="Semua">Semua Status</option>
             <option value="pending">Pending</option>
             <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
+            <option value="shipped">Shipped</option>
+            <option value="selesai">Selesai</option>
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
@@ -282,57 +298,91 @@ export default function OrdersManagementPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Pesanan</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pelanggan</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Harga</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metode Pembayaran</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  ID Pesanan
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Pelanggan
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Harga
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Metode Pembayaran
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Aksi
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {currentOrders.map((order) => (
                 <tr key={order._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{order._id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{order.user_id.name}</div>
-                    <div className="text-xs text-gray-500">{order.user_id.email}</div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {order._id.slice(-8).toUpperCase()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatPrice(order.total_price)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {order.user_id?.name || "User tidak ditemukan"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {order.user_id?.email || "Email tidak tersedia"}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {formatPrice(order.total_price)}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={order.status}
-                      onChange={(e) => updateOrderStatus(order._id, e.target.value)}
+                      onChange={(e) =>
+                        updateOrderStatus(order._id, e.target.value)
+                      }
                       className={`block w-full py-1 px-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285A43] focus:border-transparent text-xs ${
-                        order.status === "completed"
+                        order.status === "selesai"
                           ? "bg-green-100 text-green-800"
                           : order.status === "cancelled"
                           ? "bg-red-100 text-red-800"
                           : order.status === "processing"
                           ? "bg-blue-100 text-blue-800"
+                          : order.status === "shipped"
+                          ? "bg-purple-100 text-purple-800"
                           : "bg-yellow-100 text-yellow-800"
                       }`}
                     >
                       <option value="pending">Pending</option>
                       <option value="processing">Processing</option>
-                      <option value="completed">Completed</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="selesai">Selesai</option>
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{order.payment_method}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {order.payment_method}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-right">
                     <button
-                      onClick={() => setShowDetails(showDetails === order._id ? null : order._id)}
+                      onClick={() => {
+                        // Kosong - tidak melakukan apa-apa
+                      }}
                       className="text-indigo-600 hover:text-indigo-900"
                     >
-                      {showDetails === order._id ? "Sembunyikan" : "Detail"}
+                      Detail
                     </button>
                   </td>
                 </tr>
               ))}
               {currentOrders.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">Tidak ada pesanan yang ditemukan</td>
+                  <td
+                    colSpan="6"
+                    className="px-6 py-4 text-center text-gray-500"
+                  >
+                    Tidak ada pesanan yang ditemukan
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -346,96 +396,78 @@ export default function OrdersManagementPage() {
               .filter((order) => order._id === showDetails)
               .map((order) => (
                 <div key={order._id}>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">Detail Pesanan #{order._id}</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                    Detail Pesanan #{order._id.slice(-8).toUpperCase()}
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Pelanggan</p>
-                      <p className="text-gray-900">{order.user_id.name}</p>
-                      <p className="text-gray-600 text-sm">{order.user_id.email}</p>
-                      <p className="text-gray-600 text-sm">{order.user_id.phone}</p>
+                      <p className="text-sm font-medium text-gray-600">
+                        Pelanggan
+                      </p>
+                      <p className="text-gray-900">
+                        {order.user_id?.name || "User tidak ditemukan"}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        {order.user_id?.email || "Email tidak tersedia"}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        {order.user_id?.phone || "Phone tidak tersedia"}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-600">Alamat Pengiriman</p>
+                      <p className="text-sm font-medium text-gray-600">
+                        Alamat Pengiriman
+                      </p>
                       <p className="text-gray-900">{order.address}</p>
                     </div>
                   </div>
                   <div className="mt-4">
-                    <p className="text-sm font-medium text-gray-600">Item Pesanan</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      Item Pesanan
+                    </p>
                     <table className="min-w-full divide-y divide-gray-200 mt-2">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipe</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Harga Satuan</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subtotal</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Item
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tipe
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Jumlah
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Harga Satuan
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Subtotal
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {order.items.map((item) => (
-                          <tr key={item._id}>
+                        {order.items.map((item, index) => (
+                          <tr key={index}>
                             <td className="px-4 py-2 text-sm text-gray-900">
-                              {item.item_id?.name || item.item_id?.title || "Item tidak ditemukan"}
+                              {item.nama || "Item tidak ditemukan"}
                             </td>
-                            <td className="px-4 py-2 text-sm text-gray-600">{item.item_type.replace("_", " ")}</td>
-                            <td className="px-4 py-2 text-sm text-gray-600">{item.quantity}</td>
-                            <td className="px-4 py-2 text-sm text-gray-600">{formatPrice(item.price)}</td>
-                            <td className="px-4 py-2 text-sm text-gray-600">{formatPrice(item.subtotal)}</td>
+                            <td className="px-4 py-2 text-sm text-gray-600">
+                              {item.type.replace("_", " ")}
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-600">
+                              {item.quantity}
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-600">
+                              {formatPrice(item.harga)}
+                            </td>
+                            <td className="px-4 py-2 text-sm text-gray-600">
+                              {formatPrice(item.harga * item.quantity)}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  {order.bookings.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-sm font-medium text-gray-600">Booking Layanan</p>
-                      <table className="min-w-full divide-y divide-gray-200 mt-2">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Layanan</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal & Waktu</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {order.bookings.map((booking) => (
-                            <tr key={booking._id}>
-                              <td className="px-4 py-2 text-sm text-gray-900">
-                                {booking.service_id?.title || "Layanan tidak ditemukan"}
-                              </td>
-                              <td className="px-4 py-2 text-sm text-gray-600">
-                                {new Date(booking.date).toLocaleDateString("id-ID")} {booking.time}
-                              </td>
-                              <td className="px-4 py-2 whitespace-nowrap">
-                                <select
-                                  value={booking.status}
-                                  onChange={(e) => updateBookingStatus(booking._id, e.target.value)}
-                                  className={`block w-full py-1 px-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#285A43] focus:border-transparent text-xs ${
-                                    booking.status === "completed"
-                                      ? "bg-green-100 text-green-800"
-                                      : booking.status === "cancelled"
-                                      ? "bg-red-100 text-red-800"
-                                      : booking.status === "confirmed"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-yellow-100 text-yellow-800"
-                                  }`}
-                                >
-                                  <option value="pending">Pending</option>
-                                  <option value="confirmed">Confirmed</option>
-                                  <option value="completed">Completed</option>
-                                  <option value="cancelled">Cancelled</option>
-                                </select>
-                              </td>
-                              <td className="px-4 py-2 text-sm text-gray-600">{booking.notes || "-"}</td>
-                              <td className="px-4 py-2 text-sm text-gray-600">{booking.confirmed_by?.name || "-"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                 </div>
               ))}
           </div>
@@ -449,16 +481,24 @@ export default function OrdersManagementPage() {
                 onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
                 disabled={currentPage === 1}
                 className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                  currentPage === 1 ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-50"
+                  currentPage === 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
                 }`}
               >
                 Previous
               </button>
               <button
-                onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
+                onClick={() =>
+                  paginate(
+                    currentPage < totalPages ? currentPage + 1 : totalPages
+                  )
+                }
                 disabled={currentPage === totalPages}
                 className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                  currentPage === totalPages ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-50"
+                  currentPage === totalPages
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
                 }`}
               >
                 Next
@@ -467,38 +507,61 @@ export default function OrdersManagementPage() {
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Menampilkan <span className="font-medium">{indexOfFirstItem + 1}</span> hingga{" "}
-                  <span className="font-medium">{Math.min(indexOfLastItem, filteredOrders.length)}</span> dari{" "}
-                  <span className="font-medium">{filteredOrders.length}</span> hasil
+                  Menampilkan{" "}
+                  <span className="font-medium">{indexOfFirstItem + 1}</span>{" "}
+                  hingga{" "}
+                  <span className="font-medium">
+                    {Math.min(indexOfLastItem, filteredOrders.length)}
+                  </span>{" "}
+                  dari{" "}
+                  <span className="font-medium">{filteredOrders.length}</span>{" "}
+                  hasil
                 </p>
               </div>
               <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <nav
+                  className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                  aria-label="Pagination"
+                >
                   <button
-                    onClick={() => paginate(currentPage > 1 ? currentPage - 1 : 1)}
+                    onClick={() =>
+                      paginate(currentPage > 1 ? currentPage - 1 : 1)
+                    }
                     disabled={currentPage === 1}
                     className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
-                      currentPage === 1 ? "text-gray-300 cursor-not-allowed" : "text-gray-500 hover:bg-gray-50"
+                      currentPage === 1
+                        ? "text-gray-300 cursor-not-allowed"
+                        : "text-gray-500 hover:bg-gray-50"
                     }`}
                   >
                     {"<"}
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
-                    <button
-                      key={number}
-                      onClick={() => paginate(number)}
-                      className={`relative inline-flex items-center px-4 py-2 border ${
-                        currentPage === number ? "bg-[#285A43] text-white border-[#285A43]" : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                      } text-sm font-medium`}
-                    >
-                      {number}
-                    </button>
-                  ))}
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (number) => (
+                      <button
+                        key={number}
+                        onClick={() => paginate(number)}
+                        className={`relative inline-flex items-center px-4 py-2 border ${
+                          currentPage === number
+                            ? "bg-[#285A43] text-white border-[#285A43]"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        } text-sm font-medium`}
+                      >
+                        {number}
+                      </button>
+                    )
+                  )}
                   <button
-                    onClick={() => paginate(currentPage < totalPages ? currentPage + 1 : totalPages)}
+                    onClick={() =>
+                      paginate(
+                        currentPage < totalPages ? currentPage + 1 : totalPages
+                      )
+                    }
                     disabled={currentPage === totalPages}
                     className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                      currentPage === totalPages ? "text-gray-300 cursor-not-allowed" : "text-gray-500 hover:bg-gray-50"
+                      currentPage === totalPages
+                        ? "text-gray-300 cursor-not-allowed"
+                        : "text-gray-500 hover:bg-gray-50"
                     }`}
                   >
                     {">"}
