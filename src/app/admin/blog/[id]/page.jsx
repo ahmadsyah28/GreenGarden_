@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+// ✅ PERUBAHAN 1: Tambahkan import 'use' dari React
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { FaTags, FaImage } from "react-icons/fa";
 
 export default function BlogPreviewPage({ params }) {
-  const { id } = params;
+  // ✅ PERUBAHAN 2: Gunakan use() untuk unwrap params Promise
+  const { id } = use(params);
   const [blog, setBlog] = useState(null);
   const [error, setError] = useState(null);
 
