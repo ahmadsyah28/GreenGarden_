@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -40,7 +40,18 @@ const SafeImage = ({ src, alt, className, fill, ...props }) => {
   );
 };
 
-const CheckoutSuccessPage = () => {
+// Loading Component
+const LoadingComponent = () => {
+  return (
+    <div className="container mx-auto px-4 py-10 max-w-4xl bg-white text-center">
+      <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#50806B] mx-auto"></div>
+      <p className="text-gray-600 mt-4">Memuat halaman...</p>
+    </div>
+  );
+};
+
+// Main Content Component yang menggunakan useSearchParams
+const CheckoutSuccessContent = () => {
   const [order, setOrder] = useState(null);
   const [recommendedItems, setRecommendedItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -471,6 +482,15 @@ const CheckoutSuccessPage = () => {
         </div>
       )}
     </div>
+  );
+};
+
+// Main Component dengan Suspense wrapper
+const CheckoutSuccessPage = () => {
+  return (
+    <Suspense fallback={<LoadingComponent />}>
+      <CheckoutSuccessContent />
+    </Suspense>
   );
 };
 
