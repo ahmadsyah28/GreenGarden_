@@ -1,3 +1,4 @@
+// src/app/api/orders/route.js (Customer orders)
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import connectMongo from "@/lib/mongodb";
@@ -11,11 +12,12 @@ const isDev = process.env.NODE_ENV === "development";
 
 export async function GET(request) {
   await connectMongo();
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get("userId");
-  const status = searchParams.get("status");
-
+  
   try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const status = searchParams.get("status");
+
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
@@ -47,65 +49,59 @@ export async function GET(request) {
 export async function POST(request) {
   await connectMongo();
 
-  let body;
   try {
-    body = await request.json();
-  } catch (error) {
-    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
-  }
+    const body = await request.json();
+    const {
+      userId,
+      items,
+      shippingInfo,
+      shippingMethod,
+      shippingCost,
+      paymentMethod,
+      subtotal,
+      voucherDiscount,
+      total,
+    } = body;
 
-  const {
-    userId,
-    items,
-    shippingInfo,
-    shippingMethod,
-    shippingCost,
-    paymentMethod,
-    subtotal,
-    voucherDiscount,
-    total,
-  } = body;
+    // Validate input
+    if (
+      !userId ||
+      !items ||
+      !Array.isArray(items) ||
+      !shippingInfo ||
+      !shippingMethod ||
+      !shippingCost ||
+      !paymentMethod ||
+      !subtotal ||
+      !total
+    ) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
 
-  // Validate input
-  if (
-    !userId ||
-    !items ||
-    !Array.isArray(items) ||
-    !shippingInfo ||
-    !shippingMethod ||
-    !shippingCost ||
-    !paymentMethod ||
-    !subtotal ||
-    !total
-  ) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
+    }
 
-  if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
-  }
+    if (!["regular", "express"].includes(shippingMethod)) {
+      return NextResponse.json({ error: "Invalid shipping method" }, { status: 400 });
+    }
 
-  if (!["regular", "express"].includes(shippingMethod)) {
-    return NextResponse.json({ error: "Invalid shipping method" }, { status: 400 });
-  }
+    if (!["transfer", "ewallet", "cod"].includes(paymentMethod)) {
+      return NextResponse.json({ error: "Invalid payment method" }, { status: 400 });
+    }
 
-  if (!["transfer", "ewallet", "cod"].includes(paymentMethod)) {
-    return NextResponse.json({ error: "Invalid payment method" }, { status: 400 });
-  }
+    if (voucherDiscount && (typeof voucherDiscount !== "number" || voucherDiscount < 0)) {
+      return NextResponse.json({ error: "Invalid voucher discount" }, { status: 400 });
+    }
 
-  if (voucherDiscount && (typeof voucherDiscount !== "number" || voucherDiscount < 0)) {
-    return NextResponse.json({ error: "Invalid voucher discount" }, { status: 400 });
-  }
+    if (typeof subtotal !== "number" || subtotal < 0) {
+      return NextResponse.json({ error: "Invalid subtotal" }, { status: 400 });
+    }
 
-  if (typeof subtotal !== "number" || subtotal < 0) {
-    return NextResponse.json({ error: "Invalid subtotal" }, { status: 400 });
-  }
+    if (typeof total !== "number" || total < 0) {
+      return NextResponse.json({ error: "Invalid total" }, { status: 400 });
+    }
 
-  if (typeof total !== "number" || total < 0) {
-    return NextResponse.json({ error: "Invalid total" }, { status: 400 });
-  }
-
-  try {
     // Validate shippingInfo
     const requiredShippingFields = [
       "nama",
@@ -242,7 +238,7 @@ export async function POST(request) {
       subtotal,
       voucherDiscount: voucherDiscount || 0,
       total,
-      status: "selesai",
+      status: "pending", // Changed from "selesai" to "pending"
       cancellationReason: "",
     });
 

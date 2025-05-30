@@ -1,3 +1,4 @@
+// src/app/api/cart/route.js (Updated with proper DELETE method)
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import connectMongo from "@/lib/mongodb";
@@ -10,16 +11,17 @@ const isDev = process.env.NODE_ENV === "development";
 
 export async function POST(request) {
   await connectMongo();
-  const { type, itemId, optionId, quantity, userId, additionalServices, size } = await request.json();
-
-  if (!userId || !type || !itemId || (type === "maintenance" && !optionId)) {
-    return NextResponse.json(
-      { error: "User ID, type, itemId, dan optionId (untuk perawatan) wajib diisi" },
-      { status: 400 }
-    );
-  }
-
+  
   try {
+    const { type, itemId, optionId, quantity, userId, additionalServices, size } = await request.json();
+
+    if (!userId || !type || !itemId || (type === "maintenance" && !optionId)) {
+      return NextResponse.json(
+        { error: "User ID, type, itemId, dan optionId (untuk perawatan) wajib diisi" },
+        { status: 400 }
+      );
+    }
+
     if (!mongoose.Types.ObjectId.isValid(itemId) || !mongoose.Types.ObjectId.isValid(userId)) {
       return NextResponse.json({ error: "Format itemId atau userId tidak valid" }, { status: 400 });
     }
@@ -143,7 +145,7 @@ export async function POST(request) {
     }
 
     await cart.save();
-    console.log(`Item ditambahkan ke keranjang untuk user ${userId}:`, {
+    if (isDev) console.log(`Item ditambahkan ke keranjang untuk user ${userId}:`, {
       type,
       itemId,
       optionId,
@@ -154,7 +156,7 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error menambahkan ke keranjang:", error);
+    if (isDev) console.error("Error menambahkan ke keranjang:", error);
     return NextResponse.json(
       { error: `Gagal menambahkan ke keranjang: ${error.message}` },
       { status: 500 }
@@ -164,14 +166,15 @@ export async function POST(request) {
 
 export async function GET(request) {
   await connectMongo();
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get("userId");
-
-  if (!userId) {
-    return NextResponse.json({ error: "User ID is required" }, { status: 400 });
-  }
-
+  
   try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return NextResponse.json({ error: "Invalid userId format" }, { status: 400 });
     }
@@ -211,22 +214,23 @@ export async function GET(request) {
 
 export async function PATCH(request) {
   await connectMongo();
-  const { type, itemId, optionId, quantity, userId, additionalServices, size } = await request.json();
-
-  if (!userId || !type || !itemId || !quantity || (type === "maintenance" && !optionId)) {
-    return NextResponse.json(
-      { error: "User ID, type, itemId, quantity, dan optionId (untuk perawatan) wajib diisi" },
-      { status: 400 }
-    );
-  }
-  if (type === "maintenance" && !size) {
-    return NextResponse.json(
-      { error: "Ukuran wajib diisi untuk layanan perawatan" },
-      { status: 400 }
-    );
-  }
-
+  
   try {
+    const { type, itemId, optionId, quantity, userId, additionalServices, size } = await request.json();
+
+    if (!userId || !type || !itemId || !quantity || (type === "maintenance" && !optionId)) {
+      return NextResponse.json(
+        { error: "User ID, type, itemId, quantity, dan optionId (untuk perawatan) wajib diisi" },
+        { status: 400 }
+      );
+    }
+    if (type === "maintenance" && !size) {
+      return NextResponse.json(
+        { error: "Ukuran wajib diisi untuk layanan perawatan" },
+        { status: 400 }
+      );
+    }
+
     if (!mongoose.Types.ObjectId.isValid(itemId) || !mongoose.Types.ObjectId.isValid(userId)) {
       return NextResponse.json({ error: "Format itemId atau userId tidak valid" }, { status: 400 });
     }
@@ -343,45 +347,39 @@ export async function PATCH(request) {
 
 export async function DELETE(request) {
   await connectMongo();
-  const { type, itemId, optionId, userId, clearAll } = await request.json();
+  
+  try {
+    const { type, itemId, optionId, userId, clearAll } = await request.json();
 
-  if (clearAll) {
-    try {
-      if (!mongoose.Types.ObjectId.isValid(userId)) {
-        return NextResponse.json({ error: "Invalid userId format" }, { status: 400 });
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return NextResponse.json({ error: "Invalid userId format" }, { status: 400 });
+    }
+
+    if (clearAll) {
+      const result = await Cart.deleteOne({ userId });
+      
+      if (result.deletedCount === 0) {
+        if (isDev) console.log(`No cart found to clear for userId: ${userId}`);
+        return NextResponse.json({ message: "Cart was already empty" }, { status: 200 });
       }
+      
+      if (isDev) console.log(`Cart cleared for user ${userId}`);
+      return NextResponse.json({ message: "Cart cleared successfully" }, { status: 200 });
+    }
 
-      const cart = await Cart.findOne({ userId });
-      if (!cart) {
-        return NextResponse.json({ error: "Keranjang tidak ditemukan" }, { status: 404 });
-      }
-
-      cart.items = [];
-      await cart.save();
-      console.log(`Keranjang dikosongkan untuk user ${userId}`);
+    if (!type || !itemId || (type === "maintenance" && !optionId)) {
       return NextResponse.json(
-        { message: "Keranjang dikosongkan", cart },
-        { status: 200 }
-      );
-    } catch (error) {
-      console.error("Error mengosongkan keranjang:", error);
-      return NextResponse.json(
-        { error: `Gagal mengosongkan keranjang: ${error.message}` },
-        { status: 500 }
+        { error: "User ID, type, itemId, dan optionId (untuk perawatan) wajib diisi" },
+        { status: 400 }
       );
     }
-  }
 
-  if (!userId || !type || !itemId || (type === "maintenance" && !optionId)) {
-    return NextResponse.json(
-      { error: "User ID, type, itemId, dan optionId (untuk perawatan) wajib diisi" },
-      { status: 400 }
-    );
-  }
-
-  try {
-    if (!mongoose.Types.ObjectId.isValid(itemId) || !mongoose.Types.ObjectId.isValid(userId)) {
-      return NextResponse.json({ error: "Format itemId atau userId tidak valid" }, { status: 400 });
+    if (!mongoose.Types.ObjectId.isValid(itemId)) {
+      return NextResponse.json({ error: "Format itemId tidak valid" }, { status: 400 });
     }
     if (type === "maintenance" && !Number.isInteger(optionId)) {
       return NextResponse.json({ error: "optionId harus berupa angka" }, { status: 400 });
@@ -404,7 +402,7 @@ export async function DELETE(request) {
 
     cart.items.splice(itemIndex, 1);
     await cart.save();
-    console.log(`Item dihapus dari keranjang untuk user ${userId}:`, {
+    if (isDev) console.log(`Item dihapus dari keranjang untuk user ${userId}:`, {
       type,
       itemId,
       optionId,
@@ -414,7 +412,7 @@ export async function DELETE(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error menghapus item dari keranjang:", error);
+    if (isDev) console.error("Error deleting from cart:", error);
     return NextResponse.json(
       { error: `Gagal menghapus item: ${error.message}` },
       { status: 500 }

@@ -1,11 +1,44 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FaCheckCircle, FaDownload, FaHome, FaShoppingBag } from "react-icons/fa";
 import { jsPDF } from "jspdf";
+import AuthContext from "@/context/AuthContext";
+
+// Safe Image Component with Error Handling
+const SafeImage = ({ src, alt, className, fill, ...props }) => {
+  const [imgSrc, setImgSrc] = useState(src);
+  const [hasError, setHasError] = useState(false);
+
+  const handleError = () => {
+    if (!hasError) {
+      setHasError(true);
+      setImgSrc('/images/placeholder.png');
+    }
+  };
+
+  if (!src || hasError) {
+    return (
+      <div className={`bg-gray-200 flex items-center justify-center ${fill ? 'absolute inset-0' : 'w-full h-full'}`}>
+        <span className="text-gray-400 text-xs">No Image</span>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={imgSrc}
+      alt={alt}
+      className={className}
+      fill={fill}
+      onError={handleError}
+      {...props}
+    />
+  );
+};
 
 const CheckoutSuccessPage = () => {
   const [order, setOrder] = useState(null);
@@ -14,6 +47,7 @@ const CheckoutSuccessPage = () => {
   const [error, setError] = useState(null);
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId");
+  const { user } = useContext(AuthContext);
 
   // Fetch order details and recommended items
   useEffect(() => {
@@ -36,12 +70,16 @@ const CheckoutSuccessPage = () => {
         setOrder(orderData.order);
 
         // Fetch recommended plants (limit to 4)
-        const plantsResponse = await fetch("/api/plants?limit=4");
-        if (!plantsResponse.ok) {
-          throw new Error("Gagal mengambil rekomendasi produk");
+        try {
+          const plantsResponse = await fetch("/api/plants?limit=4");
+          if (plantsResponse.ok) {
+            const plantsData = await plantsResponse.json();
+            setRecommendedItems(plantsData.plants || []);
+          }
+        } catch (plantError) {
+          console.warn("Failed to fetch recommendations:", plantError);
+          setRecommendedItems([]);
         }
-        const plantsData = await plantsResponse.json();
-        setRecommendedItems(plantsData.plants || []);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -148,6 +186,11 @@ const CheckoutSuccessPage = () => {
 
   // Handle add to cart for recommended items
   const addToCart = async (plantId) => {
+    if (!user) {
+      alert("Silakan login untuk menambahkan ke keranjang");
+      return;
+    }
+
     try {
       const response = await fetch("/api/cart", {
         method: "POST",
@@ -156,14 +199,18 @@ const CheckoutSuccessPage = () => {
           type: "plant",
           itemId: plantId,
           quantity: 1,
-          userId: order.userId,
+          userId: user._id,
         }),
       });
+      
       if (!response.ok) {
-        throw new Error("Gagal menambahkan ke keranjang");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal menambahkan ke keranjang");
       }
+      
       alert("Produk ditambahkan ke keranjang!");
     } catch (err) {
+      console.error("Error adding to cart:", err);
       alert(`Gagal menambahkan ke keranjang: ${err.message}`);
     }
   };
@@ -257,7 +304,7 @@ const CheckoutSuccessPage = () => {
               className="flex items-center mb-4 border-b pb-4"
             >
               <div className="relative w-16 h-16 rounded-md overflow-hidden border border-gray-200 flex-shrink-0">
-                <Image
+                <SafeImage
                   src={item.image}
                   alt={item.nama}
                   fill
@@ -305,34 +352,24 @@ const CheckoutSuccessPage = () => {
           </div>
         </div>
 
-        {/* Payment Instructions */}
+        {/* Payment Instructions - No Icons/Images */}
         {["transfer", "ewallet"].includes(order.paymentMethod) && (
           <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-6 mb-8">
             <h2 className="text-xl font-bold text-[#404041] mb-4">Instruksi Pembayaran</h2>
-            <div className="flex items-start mb-4">
-              <div className="relative w-12 h-12 mr-4">
-                <Image
-                  src={order.paymentMethod === "transfer" ? "/images/bank-bca.png" : "/images/ewallet.png"}
-                  alt={order.paymentMethod === "transfer" ? "BCA" : "E-Wallet"}
-                  fill
-                  className="object-contain"
-                />
-              </div>
-              <div>
-                {order.paymentMethod === "transfer" ? (
-                  <>
-                    <p className="font-semibold text-[#404041]">Bank BCA</p>
-                    <p className="text-gray-600 mb-1">Nomor Rekening: 1234567890</p>
-                    <p className="text-gray-600">Atas Nama: PT Green Garden Indonesia</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-semibold text-[#404041]">E-Wallet</p>
-                    <p className="text-gray-600 mb-1">Nomor: 081234567890</p>
-                    <p className="text-gray-600">Atas Nama: PT Green Garden Indonesia</p>
-                  </>
-                )}
-              </div>
+            <div className="mb-4">
+              {order.paymentMethod === "transfer" ? (
+                <>
+                  <p className="font-semibold text-[#404041] mb-2">Transfer Bank BCA</p>
+                  <p className="text-gray-600 mb-1">Nomor Rekening: 1234567890</p>
+                  <p className="text-gray-600">Atas Nama: PT Green Garden Indonesia</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-[#404041] mb-2">E-Wallet</p>
+                  <p className="text-gray-600 mb-1">Nomor: 081234567890</p>
+                  <p className="text-gray-600">Atas Nama: PT Green Garden Indonesia</p>
+                </>
+              )}
             </div>
             <div className="bg-white rounded-lg p-4 border border-gray-200">
               <p className="text-sm text-gray-600 mb-2">
@@ -411,8 +448,8 @@ const CheckoutSuccessPage = () => {
                 className="border border-gray-200 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
               >
                 <div className="relative w-full h-48">
-                  <Image
-                    src={item.image || "/images/placeholder-plant.png"}
+                  <SafeImage
+                    src={item.image}
                     alt={item.name}
                     fill
                     className="object-cover"
