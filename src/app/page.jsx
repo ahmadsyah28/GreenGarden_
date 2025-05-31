@@ -69,16 +69,16 @@ const Home = () => {
           </p>
           <div className="flex gap-4">
             <Link
-              href="/get-started"
+              href="/layanan/design-taman"
               className="bg-[#50806B] rounded-[20px] py-2 px-3 text-white font-semibold"
             >
-              Get Started
+              Desain Taman
             </Link>
             <Link
-              href="/learn-more"
+              href="/layanan/tanaman-hias"
               className="bg-[#404041] text-white rounded-[20px] py-2 px-3 font-semibold"
             >
-              Learn More
+              Tanaman Hias
             </Link>
           </div>
         </div>

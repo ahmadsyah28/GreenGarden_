@@ -123,11 +123,6 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
       return;
     }
 
-    if (luasError) {
-      alert("Masukkan luas tanah yang valid.");
-      return;
-    }
-
     try {
       const response = await fetch("/api/cart", {
         method: "POST",
@@ -279,17 +274,7 @@ const DetailDesainTaman = ({ params: paramsPromise }) => {
             </div>
           </div>
 
-          <div className="mt-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
-            <h3 className="text-xl font-semibold text-[#404041] mb-4">Luas Tanah</h3>
-            <input
-              type="number"
-              value={luasTanah}
-              onChange={handleLuasChange}
-              placeholder="Masukkan luas tanah (m²)"
-              className="w-full p-2 border rounded-lg"
-            />
-            {luasError && <p className="text-red-600 mt-2">{luasError}</p>}
-          </div>
+          
         </div>
 
         <div className="w-full md:w-1/2">
