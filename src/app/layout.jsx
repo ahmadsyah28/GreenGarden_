@@ -1,11 +1,11 @@
 // app/layout.js
 "use client";
-
 import { Geist, Geist_Mono } from "next/font/google";
+import { useContext } from "react";
 import "./globals.css";
 import Navbar from "@/components/layouts/NavbarGuest";
 import Footer from "@/components/layouts/Footer";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, default as AuthContext } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
 
 const geistSans = Geist({
@@ -18,24 +18,38 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export default function RootLayout({ children }) {
+function LayoutContent({ children }) {
   const pathname = usePathname();
-  const isAdminPage = pathname?.startsWith('/admin');
-  const isAuthPage = pathname?.startsWith('/login') || pathname?.startsWith('/register');
+  const { loading } = useContext(AuthContext);
+
+  const isAdminPage = pathname?.startsWith("/admin");
+  const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register");
 
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased `}
-      >
-        <AuthProvider>
-          {!isAdminPage && !isAuthPage && <Navbar />}
-          <main className={isAuthPage ? "min-h-screen flex items-center justify-center bg-gray-100" : ""}>
-            {children}
-          </main>
-          {!isAdminPage && !isAuthPage && <Footer />}
-        </AuthProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {!isAdminPage && !isAuthPage && <Navbar />}
+
+        <main>
+          {loading && !isAdminPage && !isAuthPage ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            </div>
+          ) : (
+            children
+          )}
+        </main>
+
+        {!isAdminPage && !isAuthPage && loading && <Footer />}
       </body>
     </html>
+  );
+}
+
+export default function RootLayout({ children }) {
+  return (
+    <AuthProvider>
+      <LayoutContent>{children}</LayoutContent>
+    </AuthProvider>
   );
 }
