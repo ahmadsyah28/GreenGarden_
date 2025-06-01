@@ -1,6 +1,23 @@
 # 🌿 GreenGarden\_
 
 **GreenGarden\_** adalah aplikasi web berbasis **Next.js** yang membantu pengguna,mulai dari pecinta tanaman hias hingga pengelola lanskap profesional mengelola kebun mereka secara efisien. Aplikasi ini menyediakan fitur pengelolaan tanaman, layanan perawatan, dan jasa desain taman dalam satu platform terpadu.
+🔗 **Sudah dideploy di:**
+👉 [https://green-garden-b91u-git-main-ahmad-syahs-projects.vercel.app/](https://green-garden-b91u-git-main-ahmad-syahs-projects.vercel.app/)
+
+### 🔐 Akun Login
+
+**Admin**
+
+* Email: `admin@greengarden.com`
+* Password: `Admin123!`
+
+**Customer**
+
+* Email: `bintang@gmail.com`
+* Password: `123456`
+
+---
+
 
 ## 🚀 Fitur Umum
 
